@@ -66,8 +66,17 @@ class FloatingButtonService : Service() {
     @SuppressLint("MissingPermission")
     private fun showOrUpdateOverlay() {
         val appContext = applicationContext
-        val windowManager = (appContext.getSystemService(WINDOW_SERVICE) as? WindowManager) ?: return
         val settings = App.provide(appContext).settings
+        val enabled = settings.enableFloatingButton
+        val permissionGranted = FloatingButtonManager.hasOverlayPermission(appContext)
+        val shouldShow = enabled && permissionGranted && !FloatingButtonManager.isAppForeground
+
+        if (!shouldShow) {
+            removeOverlay()
+            return
+        }
+
+        val windowManager = (appContext.getSystemService(WINDOW_SERVICE) as? WindowManager) ?: return
 
         val displayMetrics = DisplayMetrics()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
@@ -158,6 +167,7 @@ class FloatingButtonService : Service() {
     }
 
     private fun removeOverlay() {
+        mainHandler.removeCallbacksAndMessages(null)
         val view = overlayView ?: return
         try {
             val windowManager = applicationContext.getSystemService(WINDOW_SERVICE) as? WindowManager
