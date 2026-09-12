@@ -31,7 +31,9 @@ import kotlin.math.roundToInt
 
 class FloatingButtonService : Service() {
 
-    private var overlayView: View? = null
+    private var overlayView: View?
+        get() = activeOverlayView
+        set(value) { activeOverlayView = value }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var sessionJob: Job? = null
@@ -225,6 +227,10 @@ class FloatingButtonService : Service() {
     companion object {
         const val ACTION_STOP = "com.andrerinas.openheadunit.ACTION_STOP_FLOATING_BUTTON"
         private const val NOTIFICATION_ID = 1002
+
+        @Volatile
+        @SuppressLint("StaticFieldLeak")
+        private var activeOverlayView: View? = null
 
         fun start(context: Context) {
             val intent = Intent(context, FloatingButtonService::class.java)
