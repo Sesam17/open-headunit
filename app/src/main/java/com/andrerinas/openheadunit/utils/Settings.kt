@@ -119,6 +119,10 @@ class Settings(private val context: Context) {
         get() = prefs.getBoolean("floating-button-connection-status-mode", true)
         set(value) { prefs.edit().putBoolean("floating-button-connection-status-mode", value).apply() }
 
+    var floatingButtonDisconnectedOpacityPercent: Int
+        get() = prefs.getInt("floating-button-disconnected-opacity-percent", 0)
+        set(value) { prefs.edit().putInt("floating-button-disconnected-opacity-percent", value.coerceIn(0, 100)).apply() }
+
     var floatingButtonXPercent: Int
         get() = prefs.getInt("floating-button-x-percent", 0)
         set(value) { prefs.edit().putInt("floating-button-x-percent", value.coerceIn(0, 100)).apply() }

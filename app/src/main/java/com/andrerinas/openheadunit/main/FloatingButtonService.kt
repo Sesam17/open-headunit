@@ -115,8 +115,10 @@ class FloatingButtonService : Service() {
         val isConnected = commManager.isConnected
         val isConnectionStatusMode = settings.floatingButtonConnectionStatusMode
         val configuredAlpha = (settings.floatingButtonOpacityPercent / 100f).coerceIn(0.0f, 1.0f)
+        val disconnectedAlpha = (settings.floatingButtonDisconnectedOpacityPercent / 100f).coerceIn(0.0f, 1.0f)
+
         val targetAlpha = if (isConnectionStatusMode && !isConnected) {
-            0.0f
+            disconnectedAlpha
         } else {
             configuredAlpha
         }
