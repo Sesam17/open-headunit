@@ -9,15 +9,17 @@ import org.junit.Test
 
 class AutoStartOfferPolicyTest {
 
-    private val phone = "AA:BB:CC:DD:EE:FF"
+    private val phone1 = "AA:BB:CC:DD:EE:FF"
+    private val phone2 = "11:22:33:44:55:66"
 
     @Test
-    fun `one phone that has never been asked about is offered`() {
+    fun `a new connected phone that has never been asked about is offered`() {
         assertEquals(
             Action.ASK,
             AutoStartOfferPolicy.decide(
-                phonesPaired = 1, connectedMac = phone,
-                answeredMacs = emptySet(), autoStartConfigured = false
+                connectedMac = phone1,
+                answeredMacs = emptySet(),
+                configuredMacs = emptySet()
             )
         )
     }
@@ -27,52 +29,33 @@ class AutoStartOfferPolicyTest {
         assertEquals(
             Action.NOTHING,
             AutoStartOfferPolicy.decide(
-                phonesPaired = 1, connectedMac = phone,
-                answeredMacs = setOf(phone), autoStartConfigured = false
+                connectedMac = phone1,
+                answeredMacs = setOf(phone1),
+                configuredMacs = emptySet()
             )
         )
     }
 
     @Test
-    fun `the answered list is matched without case, which is how addresses come back`() {
+    fun `a phone already configured for auto-start is not asked again`() {
         assertEquals(
             Action.NOTHING,
             AutoStartOfferPolicy.decide(
-                phonesPaired = 1, connectedMac = phone.lowercase(),
-                answeredMacs = setOf(phone), autoStartConfigured = false
+                connectedMac = phone1,
+                answeredMacs = emptySet(),
+                configuredMacs = setOf(phone1)
             )
         )
     }
 
     @Test
-    fun `nothing is offered when auto-start is already set up`() {
+    fun `a second new phone is offered even if a first phone is already configured`() {
         assertEquals(
-            Action.NOTHING,
+            Action.ASK,
             AutoStartOfferPolicy.decide(
-                phonesPaired = 1, connectedMac = phone,
-                answeredMacs = emptySet(), autoStartConfigured = true
-            )
-        )
-    }
-
-    @Test
-    fun `a second phone resets a trigger that no longer names anybody`() {
-        assertEquals(
-            Action.RESET,
-            AutoStartOfferPolicy.decide(
-                phonesPaired = 2, connectedMac = phone,
-                answeredMacs = emptySet(), autoStartConfigured = true
-            )
-        )
-    }
-
-    @Test
-    fun `a second phone with nothing stored has nothing to reset`() {
-        assertEquals(
-            Action.NOTHING,
-            AutoStartOfferPolicy.decide(
-                phonesPaired = 2, connectedMac = phone,
-                answeredMacs = emptySet(), autoStartConfigured = false
+                connectedMac = phone2,
+                answeredMacs = setOf(phone1),
+                configuredMacs = setOf(phone1)
             )
         )
     }
@@ -82,38 +65,11 @@ class AutoStartOfferPolicyTest {
         assertEquals(
             Action.NOTHING,
             AutoStartOfferPolicy.decide(
-                phonesPaired = 1, connectedMac = "",
-                answeredMacs = emptySet(), autoStartConfigured = false
+                connectedMac = "",
+                answeredMacs = emptySet(),
+                configuredMacs = emptySet()
             )
         )
-    }
-
-    @Test
-    fun `no paired phones offers nothing`() {
-        assertEquals(
-            Action.NOTHING,
-            AutoStartOfferPolicy.decide(
-                phonesPaired = 0, connectedMac = phone,
-                answeredMacs = emptySet(), autoStartConfigured = false
-            )
-        )
-    }
-
-    @Test
-    fun `the reset stands whether or not this phone was answered for`() {
-        assertEquals(
-            Action.RESET,
-            AutoStartOfferPolicy.decide(
-                phonesPaired = 3, connectedMac = phone,
-                answeredMacs = setOf(phone), autoStartConfigured = true
-            )
-        )
-    }
-
-    @Test
-    fun `the reset belongs to the home screen, where a second phone is noticed`() {
-        assertTrue(AutoStartOfferPolicy.actsNow(Action.RESET, Trigger.HOME_SCREEN))
-        assertFalse(AutoStartOfferPolicy.actsNow(Action.RESET, Trigger.PROJECTION_START))
     }
 
     @Test

@@ -764,19 +764,18 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         if (adapter == null || !adapter.isEnabled) return
 
         val connectedMac = settings.lastConnectedNativeMac
-        val cands = BluetoothHelper.driverCandidates(
-            this, settings.nativePreferredDeviceMac, connectedMac
-        )
         val action = AutoStartOfferPolicy.decide(
-            phonesPaired = cands.offered.size,
             connectedMac = connectedMac,
             answeredMacs = settings.autoStartOfferAnsweredMacs,
-            autoStartConfigured = settings.autoStartBluetoothDeviceMacs.isNotEmpty(),
+            configuredMacs = settings.autoStartBluetoothDeviceMacs,
         )
         if (!AutoStartOfferPolicy.actsNow(
                 action, AutoStartOfferPolicy.Trigger.PROJECTION_START
             )
         ) return
+        val cands = BluetoothHelper.driverCandidates(
+            this, settings.nativePreferredDeviceMac, connectedMac
+        )
         showAutoStartOfferBanner(connectedMac, cands.deviceFor(connectedMac)?.name ?: connectedMac)
     }
 
@@ -798,9 +797,12 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
                 // phone. An expiry is the No it counts as.
                 settings.autoStartOfferAnsweredMacs = settings.autoStartOfferAnsweredMacs + mac
                 if (turnOn) {
-                    settings.autoStartBluetoothDeviceMacs = setOf(mac)
-                    settings.autoStartBluetoothDeviceName = name
-                    Settings.syncAutoStartBtMacsToDeviceStorage(this, setOf(mac))
+                    val updatedMacs = settings.autoStartBluetoothDeviceMacs + mac
+                    settings.autoStartBluetoothDeviceMacs = updatedMacs
+                    if (settings.autoStartBluetoothDeviceName.isEmpty()) {
+                        settings.autoStartBluetoothDeviceName = name
+                    }
+                    Settings.syncAutoStartBtMacsToDeviceStorage(this, updatedMacs)
                 }
                 AppLog.i("AapProjectionActivity: the Bluetooth auto-start offer was answered %s.", outcome)
                 dismissAutoStartOfferBanner()
