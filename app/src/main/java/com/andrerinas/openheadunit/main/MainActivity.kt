@@ -228,7 +228,7 @@ class MainActivity : BaseActivity() {
             val elapsedSinceStart = SystemClock.elapsedRealtime() - App.appStartTime
             val targetTotalDuration = 1200L
             val actualDelay = (targetTotalDuration - elapsedSinceStart).coerceAtLeast(0L)
-
+            findViewById<View>(R.id.splash_overlay)?.bringToFront()
             showSplashWithDelay(actualDelay)
         } else {
             findViewById<View>(R.id.splash_overlay)?.visibility = View.GONE
@@ -485,10 +485,11 @@ class MainActivity : BaseActivity() {
         applyNetworkText(ConnectionStageTracker.network.value, animate = false)
         pill.visibility = View.VISIBLE
         pill.bringToFront()
-        // Only for a real attempt. The pill is up whenever the stack is armed, which is from app
-        // start, and cutting the branding splash short on every launch is not this feature's call.
-        if (autoConnectInProgress) {
-            findViewById<View>(R.id.splash_overlay)?.visibility = View.GONE
+        // If the splash overlay is still showing, keep it on top of the pill until the splash finishes
+        findViewById<View>(R.id.splash_overlay)?.let { splash ->
+            if (splash.visibility == View.VISIBLE) {
+                splash.bringToFront()
+            }
         }
     }
 
@@ -1090,10 +1091,12 @@ class MainActivity : BaseActivity() {
     }
 
     private fun requestPermissions() {
+        if (hasRequestedPermissionsThisSession) return
         // Single source of truth: the same registry the wizard/Settings permissions screen use.
         val permissionsToRequest = AppPermissions.missingNormalPermissions(this)
 
         if (permissionsToRequest.isNotEmpty()) {
+            hasRequestedPermissionsThisSession = true
             AppLog.i("Requesting missing permissions: $permissionsToRequest")
             ActivityCompat.requestPermissions(
                 this,
@@ -1102,6 +1105,18 @@ class MainActivity : BaseActivity() {
             )
         } else {
             AppLog.d("All required permissions already granted.")
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == permissionRequestCode) {
+            hasRequestedPermissionsThisSession = true
+            AppLog.i("MainActivity: Permissions request completed.")
         }
     }
 
@@ -1210,6 +1225,8 @@ class MainActivity : BaseActivity() {
                     R.string.connection_issue_banner_wifi_direct_refused
                 ConnectionIssue.WIFI_DIRECT_STACK_CYCLED ->
                     R.string.connection_issue_banner_wifi_direct_cycled
+                ConnectionIssue.WIFI_RADIO_OFF ->
+                    R.string.connection_issue_banner_wifi_radio_off
                 ConnectionIssue.VIDEO_LINK_TOO_SLOW ->
                     R.string.connection_issue_banner_video_link_too_slow
                 ConnectionIssue.FIVE_GHZ_CHANNEL_REFUSED ->
@@ -1255,6 +1272,7 @@ class MainActivity : BaseActivity() {
             ConnectionIssue.HOTSPOT_NOT_RUNNING -> getString(R.string.auto_enable_hotspot)
             ConnectionIssue.WIFI_DIRECT_GROUP_REFUSED -> getString(R.string.native_ap_transport)
             ConnectionIssue.WIFI_DIRECT_STACK_CYCLED -> getString(R.string.native_ap_transport)
+            ConnectionIssue.WIFI_RADIO_OFF -> getString(R.string.native_ap_transport)
             ConnectionIssue.VIDEO_LINK_TOO_SLOW -> getString(R.string.fps_limit)
             ConnectionIssue.FIVE_GHZ_CHANNEL_REFUSED -> getString(R.string.wifi_direct_band)
         }
@@ -1339,6 +1357,7 @@ class MainActivity : BaseActivity() {
         if (isFinishing) {
             AppLog.i("MainActivity finishing, resetting auto-start flag.")
             HomeFragment.resetAutoStart()
+            hasRequestedPermissionsThisSession = false
         }
     }
 
@@ -1353,6 +1372,7 @@ class MainActivity : BaseActivity() {
 
     companion object {
         private const val permissionRequestCode = 97
+        @Volatile var hasRequestedPermissionsThisSession: Boolean = false
         const val EXTRA_LAUNCH_SOURCE = "launch_source"
         const val LAUNCH_SOURCE_BLUETOOTH = "Bluetooth auto-start"
         const val EXTRA_SHOW_DRIVER_SELECTOR = "show_driver_selector"
