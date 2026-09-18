@@ -76,6 +76,7 @@ class FloatingButtonService : Service() {
             return START_NOT_STICKY
         }
 
+        mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post { showOrUpdateOverlay() }
         return START_STICKY
     }
@@ -90,6 +91,7 @@ class FloatingButtonService : Service() {
 
         if (!shouldShow) {
             removeOverlay()
+            stopSelf()
             return
         }
 
@@ -212,6 +214,7 @@ class FloatingButtonService : Service() {
         sessionJob?.cancel()
         serviceScope.cancel()
         super.onDestroy()
+        mainHandler.removeCallbacksAndMessages(null)
         removeOverlay()
     }
 
@@ -234,6 +237,18 @@ class FloatingButtonService : Service() {
         @SuppressLint("StaticFieldLeak")
         private var activeOverlayView: View? = null
 
+        fun removeOverlayDirect(context: Context) {
+            val view = activeOverlayView ?: return
+            try {
+                val windowManager = context.applicationContext.getSystemService(WINDOW_SERVICE) as? WindowManager
+                windowManager?.removeView(view)
+                AppLog.i("FloatingButtonService: Removed floating button overlay directly")
+            } catch (e: Exception) {
+                AppLog.w("FloatingButtonService: Failed to directly remove overlay view (${e.message})")
+            } finally {
+                activeOverlayView = null
+            }
+        }
         fun start(context: Context) {
             val intent = Intent(context, FloatingButtonService::class.java)
             try {
