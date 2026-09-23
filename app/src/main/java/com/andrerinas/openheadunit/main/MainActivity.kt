@@ -44,6 +44,7 @@ import com.andrerinas.openheadunit.connection.ConnectionStageTracker
 import com.andrerinas.openheadunit.connection.PhoneExitQuietPolicy
 import com.andrerinas.openheadunit.utils.AppLog
 import com.andrerinas.openheadunit.utils.AppPermissions
+import com.andrerinas.openheadunit.utils.CarLauncherManager
 import com.andrerinas.openheadunit.utils.ConnectionIssue
 import com.andrerinas.openheadunit.utils.ConnectionIssues
 import android.content.res.Configuration
@@ -182,11 +183,10 @@ class MainActivity : BaseActivity() {
         val appSettings = Settings(this)
         requestedOrientation = appSettings.screenOrientation.androidOrientation
 
-        // Sync UsbAttachedActivity component state with the listen for USB devices setting.
-        // This covers first install, app updates (manifest may reset component state),
-        // and ensures the USB system modal only appears when the user has opted in to listen for ALL USB devices.
+        // Sync UsbAttachedActivity and CarLauncher component states with settings.
         lifecycleScope.launch(Dispatchers.IO) {
             Settings.setUsbAttachedActivityEnabled(applicationContext, appSettings.listenForUsbDevices)
+            CarLauncherManager.syncWithSettings(applicationContext, appSettings.enableCarLauncher)
         }
 
         // Start main service immediately to handle connections and wireless server
@@ -209,6 +209,10 @@ class MainActivity : BaseActivity() {
                     return
                 }
                 if (navController.navigateUp()) {
+                    return
+                } else if (appSettings.enableCarLauncher || CarLauncherManager.isDefaultLauncher(this@MainActivity)) {
+                    // When in Car Launcher mode or active system Home launcher,
+                    // back press at the root of the app should not finish the launcher.
                     return
                 } else if (System.currentTimeMillis() - lastBackPressTime < 2000) {
                     finish()
@@ -1235,7 +1239,8 @@ class MainActivity : BaseActivity() {
                 remedyApplied = ConnectionIssueBannerPolicy.remedyApplied(
                     hotspotSsid = settings.hotspotSsid,
                     hotspotPassword = settings.hotspotPassword,
-                    staticBssid = settings.staticBSSID
+                    staticBssid = settings.staticBSSID,
+                    staticP2pBssid = settings.staticP2pBSSID
                 )
             )
         } catch (e: Exception) {
@@ -1269,6 +1274,10 @@ class MainActivity : BaseActivity() {
                     R.string.connection_issue_banner_headunit_server_deaf
                 ConnectionIssue.HANDS_FREE_HELD_ELSEWHERE ->
                     R.string.connection_issue_banner_hands_free_held
+                ConnectionIssue.HANDS_FREE_RECORD_REFUSED ->
+                    R.string.connection_issue_banner_hands_free_record_refused
+                ConnectionIssue.PHONE_HOLDS_STALE_ENDPOINT ->
+                    R.string.connection_issue_banner_stale_endpoint
             }
         )
         banner.setOnClickListener { openRemedyFor(issue) }
@@ -1307,6 +1316,10 @@ class MainActivity : BaseActivity() {
             ConnectionIssue.HEADUNIT_SERVER_NOT_ANSWERING -> return
             // The remedy is the other device's Bluetooth connection, which no setting here reaches.
             ConnectionIssue.HANDS_FREE_HELD_ELSEWHERE -> return
+            // This unit's own Bluetooth stack refused the record. No row here changes its answer.
+            ConnectionIssue.HANDS_FREE_RECORD_REFUSED -> return
+            // The remedy is on the phone, and this unit is already applying the one it has.
+            ConnectionIssue.PHONE_HOLDS_STALE_ENDPOINT -> return
             ConnectionIssue.BLUETOOTH_SENT_NO_DATA -> getString(R.string.wireless_mode)
             ConnectionIssue.BSSID_UNAVAILABLE -> getString(R.string.static_bssid_title)
             ConnectionIssue.HOTSPOT_CONFIG_UNREADABLE ->

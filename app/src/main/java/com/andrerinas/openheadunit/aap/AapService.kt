@@ -86,6 +86,9 @@ import com.andrerinas.openheadunit.connection.usb.UsbLauncherManager
 import com.andrerinas.openheadunit.connection.wifi.LinkLossTeardownPolicy
 import com.andrerinas.openheadunit.connection.wifi.LinkLossTrigger
 import com.andrerinas.openheadunit.connection.wifi.modes.helper.HelperStrategy
+import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.ExternalBtTransportPolicy
+import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.ModuleRearmPolicy
+import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeAaHandshakeManager
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.ProjectionQrSnapshot
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.SessionEndGroupPolicy
@@ -325,6 +328,12 @@ class AapService : Service() {
      */
     @Volatile
     var userExitedAA = false
+
+    /**
+     * Whether this session was ended at the head unit with the network deliberately left up, so the
+     * re-arm does not wake the phone straight back into the session the user just ended.
+     */
+    @Volatile private var sessionEndedByHand = false
     @Volatile
     var userExitCooldownUntil = 0L
 
@@ -1641,8 +1650,12 @@ class AapService : Service() {
                     commManager.awaitDisconnectComplete()
                     val launcher = wifiLauncherManager.active as? WifiLauncherNative
                     AppLog.i("AapService: Native AA session ended; keeping the ${launcher?.strategy ?: "wireless"} network up for the phone's return.")
+                    val endedByHand = sessionEndedByHand
+                    sessionEndedByHand = false
                     launcher?.rearmAfterSessionEnd(
-                        wakePhone = SessionEndGroupPolicy.wakesPhoneAfterSessionEnd(state.isClean),
+                        wakePhone = SessionEndGroupPolicy.wakesPhoneAfterSessionEnd(
+                            state.isClean, endedByHand
+                        ),
                     )
                 }
                 SessionEndGroupPolicy.Action.NONE -> {}
@@ -2319,7 +2332,7 @@ class AapService : Service() {
     /** True while the setup QR dialog needs the running launcher to read a network off. */
     @Volatile private var settingsQrHold = false
 
-    /** A wireless setting was saved while the screen had the stack down; the close re-arms it. */
+    /** A wireless Save or a Bluetooth auto-start arrived while the screen had the stack down; the close re-arms it. */
     @Volatile private var wirelessRearmPendingForSettings = false
 
     private var settingsRearmJob: Job? = null
@@ -2368,7 +2381,7 @@ class AapService : Service() {
         }
 
         val why = if (settingsQrHold) "the setup QR needs the running launcher"
-            else "the settings screen closed with a wireless setting saved behind it"
+            else "the settings screen closed with a wireless request held behind it"
         AppLog.i("AapService: $why, re-arming wireless mode $mode")
         settingsRearmJob = serviceScope.launch {
             delay(1500) // Same settle the Native AA reconnect path allows the P2P hardware.
@@ -2794,6 +2807,48 @@ class AapService : Service() {
                             ToastUtils.showToast(this, "Native AA mode not active.")
                         }
                     }
+                } else if (App.provide(this).settings.wifiConnectionMode == WifiLauncherMode.NATIVE &&
+                    NativeAaHandshakeManager.wifiButtonRoute(this) == ExternalBtTransportPolicy.WifiButton.MODULE
+                ) {
+                    // The module route names no Android device, so the button arrives without one.
+                    userExitedAA = false
+                    userExitCooldownUntil = 0L
+                    val native = wifiLauncherManager.active as? WifiLauncherNative
+                    val action = ModuleRearmPolicy.action(
+                        nativeLauncherStarted = native != null && wifiLauncherManager.activeIsStarted,
+                        handshakeStarted = native?.handshakeManager?.isStarted() == true,
+                    )
+                    AppLog.i("AapService: WiFi button on the Bluetooth module route: $action")
+                    when (action) {
+                        ModuleRearmPolicy.Action.REBUILD_LAUNCHER ->
+                            wifiLauncherManager.setActiveFromSettings(force = true, userRequested = true)
+                        ModuleRearmPolicy.Action.START_HANDSHAKE -> {
+                            native?.handshakeManager?.start()
+                            native?.handshakeManager?.notStartedReason()?.let {
+                                ToastUtils.showToast(this, getString(R.string.native_aa_poke_not_running))
+                            }
+                        }
+                        ModuleRearmPolicy.Action.WAKE_PHONE ->
+                            if (native?.handshakeManager?.wakeOverModule() != true) {
+                                AppLog.i("AapService: no module channel is open yet, so the bring-up in flight wakes the phone.")
+                            }
+                    }
+                }
+            }
+            ACTION_END_SESSION_STAY_ARMED -> {
+                AppLog.i("AapService: ACTION_END_SESSION_STAY_ARMED received")
+                serviceScope.launch {
+                    if (commManager.isConnected) {
+                        // Not a user exit, which would STOP the launcher and take the network with
+                        // it. The phone keeps a profile naming a network that still exists, so its
+                        // way back is a scan and an association rather than a whole handshake.
+                        sessionEndedByHand = true
+                        commManager.disconnect(
+                            sendByeBye = true,
+                            isUserExit = false,
+                            honorKillOnDisconnect = false
+                        )
+                    }
                 }
             }
             ACTION_NATIVE_AA_SWITCH_DEVICE -> {
@@ -2897,7 +2952,13 @@ class AapService : Service() {
                     userExitedAA = false
                     userExitCooldownUntil = 0L
                 }
-                if (actions.forceRearmWireless) {
+                if (wirelessPausedForSettings && (actions.forceRearmWireless || actions.armWirelessIfIdle)) {
+                    // Held like a Save: this arrival's own MainActivity launch closes the screen,
+                    // so a refused request would never be asked again.
+                    wirelessRearmPendingForSettings = true
+                    AppLog.i("AapService: Bluetooth auto-start while the settings screen is open; " +
+                        "re-arming when it closes.")
+                } else if (actions.forceRearmWireless) {
                     wifiLauncherManager.setActiveFromSettings(force = true)
                 } else if (networkComingUp == true) {
                     // Nothing to do and nothing safe to do: the network this arrival would rebuild
@@ -3289,6 +3350,7 @@ class AapService : Service() {
         const val ACTION_ROTATE_WIFI_DIRECT_IDENTITY = "com.andrerinas.openheadunit.ACTION_ROTATE_WIFI_DIRECT_IDENTITY"
         const val ACTION_NATIVE_AA_POKE            = "com.andrerinas.openheadunit.ACTION_NATIVE_AA_POKE"
         const val ACTION_NATIVE_AA_SWITCH_DEVICE   = "com.andrerinas.openheadunit.ACTION_NATIVE_AA_SWITCH_DEVICE"
+        const val ACTION_END_SESSION_STAY_ARMED    = "com.andrerinas.openheadunit.ACTION_END_SESSION_STAY_ARMED"
         const val ACTION_NATIVE_AA_CANCEL_POKE      = "com.andrerinas.openheadunit.ACTION_NATIVE_AA_CANCEL_POKE"
         const val ACTION_NATIVE_AA_PROMPT_SHOWN     = "com.andrerinas.openheadunit.ACTION_NATIVE_AA_PROMPT_SHOWN"
         const val ACTION_NATIVE_AA_PROMPT_DISMISSED = "com.andrerinas.openheadunit.ACTION_NATIVE_AA_PROMPT_DISMISSED"
