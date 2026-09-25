@@ -25,6 +25,8 @@ import com.andrerinas.openheadunit.connection.wifi.direct.StoredP2pIdentity
 import com.andrerinas.openheadunit.connection.wifi.modes.helper.HelperStrategy
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeDriverSelectionPolicy
 import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.NativeStrategy
+import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.SoftApAddressRecord
+import com.andrerinas.openheadunit.connection.wifi.modes.nativeaa.SoftApAdvertisedEndpoint
 import com.andrerinas.openheadunit.connection.wifi.WifiLauncherMode
 
 class Settings(private val context: Context) {
@@ -112,8 +114,11 @@ class Settings(private val context: Context) {
 
     // Car Launcher / Home App mode
     var enableCarLauncher: Boolean
-        get() = prefs.getBoolean("enable-car-launcher", false)
-        set(value) { prefs.edit().putBoolean("enable-car-launcher", value).apply() }
+        get() = prefs.getBoolean(KEY_ENABLE_CAR_LAUNCHER, false)
+        set(value) { prefs.edit().putBoolean(KEY_ENABLE_CAR_LAUNCHER, value).apply() }
+
+    val isCarLauncherActive: Boolean
+        get() = enableCarLauncher || CarLauncherManager.isDefaultLauncher(context)
 
     // Floating Launcher Overlay Button Settings
     // Off by default: on it, MainActivity.checkOverlayPermission() sends a fresh install to the
@@ -148,6 +153,16 @@ class Settings(private val context: Context) {
 
     // Action when tapping "Exit" inside Android Auto
     var aaExitAction: ExitAction
+        get() {
+            if (isCarLauncherActive) {
+                val action = rawAaExitAction
+                return if (action == ExitAction.OEM_LAUNCHER) ExitAction.APP_HOME else action
+            }
+            return rawAaExitAction
+        }
+        set(action) { rawAaExitAction = action }
+
+    var rawAaExitAction: ExitAction
         get() {
             val value = prefs.getInt("aa-exit-action", ExitAction.OEM_LAUNCHER.value)
             return ExitAction.fromInt(value)
@@ -748,6 +763,41 @@ class Settings(private val context: Context) {
         }
         set(value) = prefs.edit().putString("soft-ap-last-identity-verdict", value.name).apply()
 
+    /** The access point's address as last read, graded by SoftApEndpointStabilityPolicy. */
+    var softApAddressRecord: SoftApAddressRecord?
+        get() {
+            val ip = prefs.getString("soft-ap-last-ip", null) ?: return null
+            val digest = prefs.getString("soft-ap-last-psk-digest", null) ?: return null
+            val boot = prefs.getInt("soft-ap-ip-boot", -1).takeIf { it >= 0 }
+            return SoftApAddressRecord(ip, digest, boot, prefs.getBoolean("soft-ap-ip-spanned-boot", false))
+        }
+        set(value) {
+            prefs.edit()
+                .putString("soft-ap-last-ip", value?.ip)
+                .putString("soft-ap-last-psk-digest", value?.passphraseDigest)
+                .putInt("soft-ap-ip-boot", value?.bootCount ?: -1)
+                .putBoolean("soft-ap-ip-spanned-boot", value?.spannedBoot ?: false)
+                .apply()
+        }
+
+    /** The access point a WPP endpoint last went out on, so a bring-up that moved it can say so. */
+    var softApAdvertisedEndpoint: SoftApAdvertisedEndpoint?
+        get() {
+            val ssid = prefs.getString("soft-ap-advertised-ssid", null) ?: return null
+            val digest = prefs.getString("soft-ap-advertised-psk-digest", null) ?: return null
+            val bssid = prefs.getString("soft-ap-advertised-bssid", null) ?: return null
+            val ip = prefs.getString("soft-ap-advertised-ip", null) ?: return null
+            return SoftApAdvertisedEndpoint(ssid, digest, bssid, ip)
+        }
+        set(value) {
+            prefs.edit()
+                .putString("soft-ap-advertised-ssid", value?.ssid)
+                .putString("soft-ap-advertised-psk-digest", value?.passphraseDigest)
+                .putString("soft-ap-advertised-bssid", value?.bssid)
+                .putString("soft-ap-advertised-ip", value?.ip)
+                .apply()
+        }
+
     /**
      * The verdict the last *create* earned, so a group found already up and read as-is hands it
      * back instead of grading itself against its own stored record and always answering STABLE.
@@ -1243,6 +1293,13 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("show-toast-messages", value).apply() }
 
     var reopenOnReconnection: Boolean
+        get() {
+            if (isCarLauncherActive) return false
+            return rawReopenOnReconnection
+        }
+        set(value) { rawReopenOnReconnection = value }
+
+    var rawReopenOnReconnection: Boolean
         get() = prefs.getBoolean("reopen-on-reconnection", true)
         set(value) { prefs.edit().putBoolean("reopen-on-reconnection", value).apply() }
 
@@ -1646,6 +1703,7 @@ class Settings(private val context: Context) {
         const val KEY_MEDIA_VOLUME_OFFSET = "media-volume-offset"
         const val KEY_ASSISTANT_VOLUME_OFFSET = "assistant-volume-offset"
         const val KEY_NAVIGATION_VOLUME_OFFSET = "navigation-volume-offset"
+        const val KEY_ENABLE_CAR_LAUNCHER = "enable-car-launcher"
 
         const val AUTO_CONNECT_LAST_SESSION = "last-session"
         const val AUTO_CONNECT_SELF_MODE = "self-mode"
@@ -2113,6 +2171,13 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putBoolean("enable-rotary", value).apply() }
 
     var killOnDisconnect: Boolean
+        get() {
+            if (isCarLauncherActive) return false
+            return rawKillOnDisconnect
+        }
+        set(value) { rawKillOnDisconnect = value }
+
+    var rawKillOnDisconnect: Boolean
         get() = prefs.getBoolean("kill-on-disconnect", false)
         set(value) { prefs.edit().putBoolean("kill-on-disconnect", value).apply() }
 

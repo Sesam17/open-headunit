@@ -34,6 +34,8 @@ import android.os.SystemClock
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.andrerinas.openheadunit.App
+import com.andrerinas.openheadunit.connection.ConnectionArbiter
+import com.andrerinas.openheadunit.connection.ConnectionPriorityPolicy
 import com.andrerinas.openheadunit.connection.CommManager
 import com.andrerinas.openheadunit.decoder.audio.CallState
 import com.andrerinas.openheadunit.decoder.audio.MicRecorder
@@ -646,7 +648,11 @@ class NativeAaHandshakeManager(
      *  that's about to be torn down. */
     fun invalidateCredentials() {
         credentials = null
+        credentialsWithdrawals.incrementAndGet()
     }
+
+    /** Counts groups taken down, so a handshake can tell the network it sent has since gone. */
+    private val credentialsWithdrawals = java.util.concurrent.atomic.AtomicInteger()
 
     // isRunning alone isn't enough once closeAaListeners() can close the AA_UUID listener while
     // leaving the manager otherwise running (HFP stays up) — callers like AutoStartReceiver's
@@ -2601,7 +2607,7 @@ class NativeAaHandshakeManager(
     private fun retireStaleEndpointRecord() {
         val refused = dialRefusedSinceLastLanding
         dialRefusedSinceLastLanding = false
-        if (!StaleEndpointRecordPolicy.retiredByHandshake(refused)) return
+        if (!StaleEndpointRecordPolicy.retiredByHandshake(refused, launcher.strategy == NativeStrategy.HOTSPOT)) return
         ConnectionIssues.clear(context, ConnectionIssue.PHONE_HOLDS_STALE_ENDPOINT)
     }
 
@@ -2703,6 +2709,7 @@ class NativeAaHandshakeManager(
         // them, and the phone is free to interject a ping at any point in between.
         val inbound = Channel<ProtobufMessage>(Channel.UNLIMITED)
         var readerJob: Job? = null
+        var arbiterClaim: ConnectionArbiter.Claim? = null
         try {
             val peerName = link.peerName
             val peerAddress = link.peerAddress
@@ -2711,6 +2718,16 @@ class NativeAaHandshakeManager(
             if (commManager.isConnected ||
                 commManager.connectionState.value is CommManager.ConnectionState.Connecting) {
                 AppLog.i("NativeAA: USB/other session already active. Aborting BT handshake so phone does not start a parallel wireless attempt.")
+                abortedLocally = true
+                closePhoneLink(link)
+                return@withContext
+            }
+            arbiterClaim = ConnectionArbiter.claim(
+                ConnectionPriorityPolicy.Tier.WIRELESS_HANDSHAKE,
+                ConnectionPriorityPolicy.Owner.WIRELESS_STACK,
+                "the Native AA handshake with $peerName"
+            )
+            if (arbiterClaim == null) {
                 abortedLocally = true
                 closePhoneLink(link)
                 return@withContext
@@ -2764,6 +2781,8 @@ class NativeAaHandshakeManager(
             var capturedCreds = NativeNetworkCredentials("", "", "", "")
             // Set when the network named above stopped existing before Type 3 could go out.
             var credentialsWentStale = false
+            // The withdrawal count the credentials were sent under, or -1 before Type 3.
+            var sentUnderWithdrawals = -1
             // When the opening message last went out, for the transports that have to repeat it.
             var lastOpenerSentAt = 0L
 
@@ -2799,6 +2818,7 @@ class NativeAaHandshakeManager(
                         // Read again here rather than trusting the snapshot this exchange started
                         // with. A group removed inside the pause above leaves the phone hunting an
                         // SSID that is gone, which it cannot recover from without a new handshake.
+                        val withdrawalsAtSend = credentialsWithdrawals.get()
                         val live = credentials
                         when (CredentialFreshnessPolicy.decide(
                             captured = capturedCreds,
@@ -2842,6 +2862,7 @@ class NativeAaHandshakeManager(
                         // we put bytes on the channel, and a phone that opened the exchange itself
                         // can reach this having had nothing from us before it.
                         spokeToPhone = true
+                        sentUnderWithdrawals = withdrawalsAtSend
                         AppLog.i("NativeAA: Handshake completed successfully on Bluetooth side.")
                         val remoteMac = link.peerAddress.orEmpty()
                         if (remoteMac.isNotEmpty()) {
@@ -2978,6 +2999,13 @@ class NativeAaHandshakeManager(
                     commManager.connectionState.value is CommManager.ConnectionState.Connecting
                 if (commManager.isConnected || handoffLanding) {
                     feed(WppEvent.TcpSessionUp)
+                    return
+                }
+                if (session.stage == WppStage.SETTLING && sentUnderWithdrawals >= 0 &&
+                    credentialsWithdrawals.get() != sentUnderWithdrawals
+                ) {
+                    AppLog.w("NativeAA: the network the phone was sent was taken down while it was joining, so this handshake ends now and the phone is woken for the new one.")
+                    feed(WppEvent.NetworkWithdrawn)
                     return
                 }
                 val limit = session.currentStageTimeoutMs() ?: return
@@ -3246,6 +3274,7 @@ class NativeAaHandshakeManager(
             readerJob?.cancel()
             inbound.close()
             closePhoneLink(link)
+            ConnectionArbiter.release(arbiterClaim, sessionFormed = commManager.isConnected)
             AppLog.i("NativeAA: BT Handshake link closed.")
         }
     }
@@ -3395,6 +3424,11 @@ class NativeAaHandshakeManager(
     /** Remembers the network an endpoint went out under, which is the one the phone will insist on. */
     private fun recordAdvertisedEndpoint(transport: NativeStrategy) {
         val creds = credentials ?: return
+        if (transport == NativeStrategy.HOTSPOT) {
+            val ap = SoftApEndpointStabilityPolicy.advertisement(creds.ssid, creds.psk, creds.bssid, creds.ip) ?: return
+            if (settings.softApAdvertisedEndpoint != ap) settings.softApAdvertisedEndpoint = ap
+            return
+        }
         val pair = EndpointRetirementPolicy.recordsAdvertisement(transport, creds.ssid, creds.psk) ?: return
         if (settings.wifiDirectAdvertisedIdentity != pair) settings.wifiDirectAdvertisedIdentity = pair
     }
