@@ -22,6 +22,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import com.andrerinas.openheadunit.utils.OemAppManager
 import com.andrerinas.openheadunit.utils.CarLauncherManager
+import com.andrerinas.openheadunit.utils.UpdateChecker
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -149,7 +150,7 @@ class SettingsFragment : Fragment() {
         // Input
         "keymap",
         // Audio
-        "enableAudioSink", "audioStreamSettings", "micSettings", "audioVolumeOffsets",
+        "enableAudioSink", "audioStreamSettings", "useAAudioOutput", "micSettings", "audioVolumeOffsets",
         // Info
         "version", "about", "support"
     )
@@ -176,6 +177,7 @@ class SettingsFragment : Fragment() {
     private var pendingStaticAudioFocus: Boolean? = null
     private var pendingPlaybackFocusMode: PlaybackFocusPolicy.Mode? = null
     private var pendingUseAacAudio: Boolean? = null
+    private var pendingUseAAudioOutput: Boolean? = null
     private var pendingAttachHwDspEqualizer: Boolean? = null
     private var pendingMicInputSource: Int? = null
     private var pendingEnableRotary: Boolean? = null
@@ -358,6 +360,7 @@ class SettingsFragment : Fragment() {
         pendingStaticAudioFocus = settings.staticAudioFocus
         pendingPlaybackFocusMode = settings.playbackFocusMode
         pendingUseAacAudio = settings.useAacAudio
+        pendingUseAAudioOutput = settings.useAAudioOutput
         pendingAttachHwDspEqualizer = settings.attachHwDspEqualizer
         pendingMicInputSource = settings.micInputSource
         pendingEnableRotary = settings.enableRotary
@@ -499,6 +502,7 @@ class SettingsFragment : Fragment() {
         pendingStaticAudioFocus = settings.staticAudioFocus
         pendingPlaybackFocusMode = settings.playbackFocusMode
         pendingUseAacAudio = settings.useAacAudio
+        pendingUseAAudioOutput = settings.useAAudioOutput
         pendingAttachHwDspEqualizer = settings.attachHwDspEqualizer
         pendingEnableRotary = settings.enableRotary
         pendingMediaKeyRouting = settings.mediaKeyRouting
@@ -732,6 +736,7 @@ class SettingsFragment : Fragment() {
         pendingPlaybackFocusMode?.let { settings.playbackFocusMode = it }
         if (focusModeChanged) settings.playbackFocusSelfDefeating = false
         pendingUseAacAudio?.let { settings.useAacAudio = it }
+        pendingUseAAudioOutput?.let { settings.useAAudioOutput = it }
         pendingAttachHwDspEqualizer?.let { settings.attachHwDspEqualizer = it }
         pendingMicInputSource?.let { settings.micInputSource = it }
         pendingEnableRotary?.let { settings.enableRotary = it }
@@ -887,6 +892,7 @@ class SettingsFragment : Fragment() {
                         pendingStaticAudioFocus != settings.staticAudioFocus ||
                         pendingPlaybackFocusMode != settings.playbackFocusMode ||
                         pendingUseAacAudio != settings.useAacAudio ||
+                        pendingUseAAudioOutput != settings.useAAudioOutput ||
                         pendingAttachHwDspEqualizer != settings.attachHwDspEqualizer ||
                         pendingMicInputSource != settings.micInputSource ||
                         pendingEnableRotary != settings.enableRotary ||
@@ -972,6 +978,7 @@ class SettingsFragment : Fragment() {
                           pendingStaticAudioFocus != settings.staticAudioFocus ||
                           pendingPlaybackFocusMode != settings.playbackFocusMode ||
                           pendingUseAacAudio != settings.useAacAudio ||
+                          pendingUseAAudioOutput != settings.useAAudioOutput ||
                           pendingAttachHwDspEqualizer != settings.attachHwDspEqualizer ||
                           pendingAudioLatencyMultiplier != settings.audioLatencyMultiplier ||
                           pendingAudioQueueCapacity != settings.audioQueueCapacity ||
@@ -2565,6 +2572,20 @@ class SettingsFragment : Fragment() {
             }
         ))
 
+        if (Build.VERSION.SDK_INT >= 26) {
+            items.add(SettingItem.ToggleSettingEntry(
+                stableId = "useAAudioOutput",
+                nameResId = R.string.aaudio_output,
+                descriptionResId = R.string.aaudio_output_description,
+                isChecked = pendingUseAAudioOutput ?: settings.useAAudioOutput,
+                onCheckedChanged = { isChecked ->
+                    pendingUseAAudioOutput = isChecked
+                    checkChanges()
+                    updateSettingsList()
+                }
+            ))
+        }
+
         items.add(SettingItem.ToggleSettingEntry(
             stableId = "useAacAudio",
             nameResId = R.string.use_aac_audio,
@@ -2639,11 +2660,11 @@ class SettingsFragment : Fragment() {
             value = "${pendingAudioLatencyMultiplier}x",
             onClick = { _ ->
                 val options = arrayOf(
-                    "1x (shallowest cushion)", "2x (shallow)", "4x (medium)",
+                    "1x (lowest latency)", "2x (low latency)", "4x (medium)",
                     "8x (deep)", "16x (deepest, default)"
                 )
                 val values = intArrayOf(1, 2, 4, 8, 16)
-                val currentIndex = values.indexOf(pendingAudioLatencyMultiplier ?: 8).coerceAtLeast(0)
+                val currentIndex = values.indexOf(pendingAudioLatencyMultiplier ?: com.andrerinas.openheadunit.decoder.audio.AudioJitterBufferPolicy.DEFAULT_MULTIPLIER).coerceAtLeast(0)
                 AlertDialog.Builder(requireContext())
                     .setTitle(R.string.audio_latency_multiplier)
                     .setSingleChoiceItems(options, currentIndex) { dialog, which ->
@@ -3112,6 +3133,15 @@ class SettingsFragment : Fragment() {
             nameResId = R.string.version,
             value = BuildConfig.VERSION_NAME,
             onClick = { /* Read only */ }
+        ))
+
+        items.add(SettingItem.SettingEntry(
+            stableId = "check_for_updates",
+            nameResId = R.string.check_for_updates,
+            value = getString(R.string.check_for_updates_description),
+            onClick = {
+                handleCheckForUpdates()
+            }
         ))
 
         items.add(SettingItem.SettingEntry(
@@ -5272,4 +5302,54 @@ class SettingsFragment : Fragment() {
         alertDialog.show()
     }
 
+    private fun handleCheckForUpdates() {
+        val ctx = context ?: return
+        ToastUtils.showToast(ctx, R.string.checking_for_updates, Toast.LENGTH_SHORT, force = true)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = UpdateChecker.check(ctx)
+            if (!isAdded) return@launch
+
+            result.fold(
+                onSuccess = { info ->
+                    if (info.isUpdateAvailable) {
+                        val message = if (info.isPlayStore) {
+                            getString(R.string.update_available_playstore_message, info.latestVersionName)
+                        } else {
+                            getString(R.string.update_available_github_message, info.latestVersionName)
+                        }
+
+                        val builder = MaterialAlertDialogBuilder(ctx, R.style.DarkAlertDialog)
+                            .setTitle(R.string.update_available_title)
+                            .setMessage(message)
+                            .setNegativeButton(R.string.cancel, null)
+
+                        if (info.isPlayStore) {
+                            builder.setPositiveButton(R.string.open_play_store) { _, _ ->
+                                UpdateChecker.openPlayStore(ctx)
+                            }
+                        } else {
+                            builder.setPositiveButton(R.string.open_github_releases) { _, _ ->
+                                UpdateChecker.openGitHubReleases(ctx, info.releaseUrl)
+                            }
+                        }
+                        builder.show()
+                    } else {
+                        MaterialAlertDialogBuilder(ctx, R.style.DarkAlertDialog)
+                            .setTitle(R.string.update_not_available_title)
+                            .setMessage(getString(R.string.update_not_available_message, info.currentVersionName))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show()
+                    }
+                },
+                onFailure = {
+                    MaterialAlertDialogBuilder(ctx, R.style.DarkAlertDialog)
+                        .setTitle(R.string.check_for_updates)
+                        .setMessage(R.string.update_check_failed)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            )
+        }
+    }
 }
