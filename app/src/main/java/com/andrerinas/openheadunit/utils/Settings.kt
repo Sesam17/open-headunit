@@ -144,8 +144,8 @@ class Settings(private val context: Context) {
         set(value) { prefs.edit().putInt("floating-button-y-percent", value.coerceIn(0, 100)).apply() }
 
     var floatingButtonOpacityPercent: Int
-        get() = prefs.getInt("floating-button-opacity-percent", 50)
-        set(value) { prefs.edit().putInt("floating-button-opacity-percent", value.coerceIn(0, 100)).apply() }
+        get() = prefs.getInt("floating-button-opacity-percent", 80)
+        set(value) { prefs.edit().putInt("floating-button-opacity-percent", value.coerceIn(10, 100)).apply() }
 
     var floatingButtonSizeDp: Int
         get() = prefs.getInt("floating-button-size-dp", 60)

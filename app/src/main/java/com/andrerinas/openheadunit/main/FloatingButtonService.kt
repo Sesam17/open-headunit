@@ -103,15 +103,12 @@ class FloatingButtonService : Service() {
 
         val commManager = App.provide(appContext).commManager
         val isConnected = commManager.isConnected
-        val isConnectionStatusMode = settings.floatingButtonConnectionStatusMode
-        val configuredAlpha = (settings.floatingButtonOpacityPercent / 100f).coerceIn(0.0f, 1.0f)
-        val disconnectedAlpha = (settings.floatingButtonDisconnectedOpacityPercent / 100f).coerceIn(0.0f, 1.0f)
-
-        val targetAlpha = if (isConnectionStatusMode && !isConnected) {
-            disconnectedAlpha
-        } else {
-            configuredAlpha
-        }
+        val targetAlpha = FloatingButtonOpacityPolicy.targetAlpha(
+            isConnectionStatusMode = settings.floatingButtonConnectionStatusMode,
+            isConnected = isConnected,
+            connectedOpacityPercent = settings.floatingButtonOpacityPercent,
+            disconnectedOpacityPercent = settings.floatingButtonDisconnectedOpacityPercent,
+        )
 
         if (overlayView == null) {
             val button = ImageView(appContext).apply {
@@ -125,6 +122,13 @@ class FloatingButtonService : Service() {
                 }
             }
 
+            val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            val flags = if (FloatingButtonOpacityPolicy.isTouchable(targetAlpha)) {
+                baseFlags
+            } else {
+                baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
+
             val layoutParams = WindowManager.LayoutParams(
                 sizePx,
                 sizePx,
@@ -134,7 +138,7 @@ class FloatingButtonService : Service() {
                     @Suppress("DEPRECATION")
                     WindowManager.LayoutParams.TYPE_PHONE
                 },
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                flags,
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
@@ -165,6 +169,13 @@ class FloatingButtonService : Service() {
         } else {
             val button = (overlayView as? ImageView) ?: return
             val layoutParams = (button.layoutParams as? WindowManager.LayoutParams) ?: return
+
+            val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            layoutParams.flags = if (FloatingButtonOpacityPolicy.isTouchable(targetAlpha)) {
+                baseFlags
+            } else {
+                baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
 
             layoutParams.width = sizePx
             layoutParams.height = sizePx

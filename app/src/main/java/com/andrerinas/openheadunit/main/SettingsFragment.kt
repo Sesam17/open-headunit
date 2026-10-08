@@ -1920,7 +1920,7 @@ class SettingsFragment : Fragment() {
                 nameResId = R.string.pref_floating_button_opacity_title,
                 value = "${opacity}%",
                 sliderValue = opacity.toFloat(),
-                valueFrom = 0f,
+                valueFrom = 10f,
                 valueTo = 100f,
                 stepSize = 5f,
                 onValueChanged = { newVal ->
