@@ -867,6 +867,12 @@
     <string name="nav_action_ferry">Ferry</string>
     <string name="nav_action_ferry_train">Ferry / train</string>
     <string name="nav_action_destination">Arrival</string>
+    <string name="performance_overlay_settings">Performance overlay</string>
+    <string name="overlay_field_fps">FPS</string>
+    <string name="overlay_field_cpu">CPU</string>
+    <string name="overlay_field_temperature">Temperature</string>
+    <string name="overlay_field_frame_age">Frame age</string>
+    <string name="performance_overlay_no_lines">No lines</string>
     <string name="show_performance_overlay">Show Performance Overlay</string>
     <string name="overlay_position">Performance overlay position</string>
     <!-- Debug-only: deliberately corrupts the projected video stream so the reassembler's
@@ -1115,6 +1121,7 @@
     <string name="connection_issue_banner_stale_endpoint">Your phone is trying an old network address for this unit. If it does not connect, forget this unit in Android Auto on your phone and connect again.</string>
     <string name="connection_issue_banner_hands_free_held">Another device is using this unit\'s hands-free connection, which Android Auto needs. Disconnect that device and this unit will try again.</string>
     <string name="connection_issue_banner_hands_free_record_refused">This unit\'s Bluetooth refused the hands-free setup Android Auto needs, so wireless may not start. A cable or another wireless mode does not need it.</string>
+    <string name="connection_issue_banner_home_wifi_rejoined">This unit keeps rejoining your home WiFi during Android Auto, which can make the picture stutter, mostly on 2.4 GHz units. Tap to turn off auto-reconnect for that network, or wait until you are out of its range.</string>
     <string name="connection_issue_banner_dismiss">Dismiss</string>
     <string name="auto_connect_pill_cancel">Stop connecting</string>
     <!-- What the hotspot banner types into the settings search. Both override rows carry it
