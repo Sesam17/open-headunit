@@ -20,6 +20,7 @@ import android.widget.TextView
 import android.widget.Toast
 import android.content.ClipData
 import android.content.ClipboardManager
+import com.andrerinas.openheadunit.aap.protocol.messages.BluetoothAnnouncePolicy
 import com.andrerinas.openheadunit.utils.OemAppManager
 import com.andrerinas.openheadunit.utils.CarLauncherManager
 import com.andrerinas.openheadunit.ssl.ConscryptInitializer
@@ -177,6 +178,7 @@ class SettingsFragment : Fragment() {
     private var pendingVideoCodec: String? = null
     private var pendingFpsLimit: Int? = null
     private var pendingBluetoothAddress: String? = null
+    private var pendingBluetoothAnnounceSkip: Boolean? = null
     private var pendingEnableAudioSink: Boolean? = null
     private var pendingStaticAudioFocus: Boolean? = null
     private var pendingPlaybackFocusMode: PlaybackFocusPolicy.Mode? = null
@@ -207,7 +209,6 @@ class SettingsFragment : Fragment() {
     private var pendingNativeAaIgnoreExternalBt: Boolean? = null
     private var pendingExternalBtZbtTransport: Boolean? = null
     private var pendingExternalBtBlinkTransport: Boolean? = null
-    private var pendingAnnounceConnectionConfiguration: Boolean? = null
 
     // The probe's verdict is not a pending setting: it changes nothing and there is nothing to
     // save. It lives in the companion object with the job that produces it. This one is
@@ -266,6 +267,7 @@ class SettingsFragment : Fragment() {
     private var pendingHideClock: Boolean? = null
 
     private var requiresRestart = false
+    private var requiresServiceRestart = false
     private var hasChanges = false
     private val SAVE_ITEM_ID = 1001
     private val RESET_ITEM_ID = 1002
@@ -358,6 +360,7 @@ class SettingsFragment : Fragment() {
         pendingVideoCodec = settings.videoCodec
         pendingFpsLimit = settings.fpsLimit
         pendingBluetoothAddress = settings.bluetoothAddress
+        pendingBluetoothAnnounceSkip = BluetoothAnnouncePolicy.isSkip(settings.bluetoothAnnounceMode)
         pendingEnableAudioSink = settings.enableAudioSink
         pendingStaticAudioFocus = settings.staticAudioFocus
         pendingPlaybackFocusMode = settings.playbackFocusMode
@@ -405,7 +408,6 @@ class SettingsFragment : Fragment() {
         pendingNativeAaIgnoreExternalBt = settings.nativeAaIgnoreExternalBt
         pendingExternalBtZbtTransport = settings.externalBtZbtTransport
         pendingExternalBtBlinkTransport = settings.externalBtBlinkTransport
-        pendingAnnounceConnectionConfiguration = settings.announceConnectionConfiguration
         pendingNativeApTransport = settings.nativeApStrategy
         pendingNativeDriverSelectionMode = settings.nativeDriverSelectionMode
         pendingNativeDriverSelectionTimeout = settings.nativeDriverSelectionTimeoutSec
@@ -498,6 +500,7 @@ class SettingsFragment : Fragment() {
         pendingVideoCodec = settings.videoCodec
         pendingFpsLimit = settings.fpsLimit
         pendingBluetoothAddress = settings.bluetoothAddress
+        pendingBluetoothAnnounceSkip = BluetoothAnnouncePolicy.isSkip(settings.bluetoothAnnounceMode)
         pendingEnableAudioSink = settings.enableAudioSink
         pendingStaticAudioFocus = settings.staticAudioFocus
         pendingPlaybackFocusMode = settings.playbackFocusMode
@@ -542,7 +545,6 @@ class SettingsFragment : Fragment() {
         pendingNativeAaIgnoreExternalBt = settings.nativeAaIgnoreExternalBt
         pendingExternalBtZbtTransport = settings.externalBtZbtTransport
         pendingExternalBtBlinkTransport = settings.externalBtBlinkTransport
-        pendingAnnounceConnectionConfiguration = settings.announceConnectionConfiguration
         pendingNativeApTransport = settings.nativeApStrategy
         pendingNativeDriverSelectionMode = NativeDriverSelectionPolicy.Mode.AUTO
         pendingNativeDriverSelectionTimeout = NativeDriverSelectionPolicy.DEFAULT_TIMEOUT_SEC
@@ -698,13 +700,15 @@ class SettingsFragment : Fragment() {
     }
 
     private fun saveSettings() {
+        checkChanges()
+        var audioSessionEnded = false
         val languageChanged = pendingAppLanguage != settings.appLanguage
 
-        pendingAdvancedSettings?.let { settings.isAdvancedSettingsActive = it }
-        pendingUseGps?.let { settings.useGpsForNavigation = it }
-        pendingShowNavigationNotifications?.let { settings.showNavigationNotifications = it }
-        pendingSyncMediaSessionAaMetadata?.let { settings.syncMediaSessionWithAaMetadata = it }
-        pendingAutoResumePlaybackOnReconnect?.let { settings.autoResumePlaybackOnReconnect = it }
+        pendingAdvancedSettings?.let { if (it != settings.isAdvancedSettingsActive) settings.isAdvancedSettingsActive = it }
+        pendingUseGps?.let { if (it != settings.useGpsForNavigation) settings.useGpsForNavigation = it }
+        pendingShowNavigationNotifications?.let { if (it != settings.showNavigationNotifications) settings.showNavigationNotifications = it }
+        pendingSyncMediaSessionAaMetadata?.let { if (it != settings.syncMediaSessionWithAaMetadata) settings.syncMediaSessionWithAaMetadata = it }
+        pendingAutoResumePlaybackOnReconnect?.let { if (it != settings.autoResumePlaybackOnReconnect) settings.autoResumePlaybackOnReconnect = it }
         // The way back from a link the app measured as too slow: it lowered the profile after three
         // sessions that rendered nothing, and nothing else retires that, because the cap is what
         // makes the next session render. See VideoStarvationPolicy.shouldCap.
@@ -712,111 +716,115 @@ class SettingsFragment : Fragment() {
             (pendingResolution != null && pendingResolution != settings.resolutionId) ||
                 (pendingFpsLimit != null && pendingFpsLimit != settings.fpsLimit)
         if (videoProfileChanged) settings.videoProfileStarvationCap = false
-        pendingResolution?.let { settings.resolutionId = it }
-        pendingDpi?.let { settings.dpiPixelDensity = it }
-        pendingPixelAspectRatioE4?.let { settings.pixelAspectRatioE4 = it }
-        pendingStaticBSSID?.let { settings.staticBSSID = it }
-        pendingStaticP2pBSSID?.let { settings.staticP2pBSSID = it }
-        pendingFullscreenMode?.let { settings.fullscreenMode = it }
+        pendingResolution?.let { if (it != settings.resolutionId) settings.resolutionId = it }
+        pendingDpi?.let { if (it != settings.dpiPixelDensity) settings.dpiPixelDensity = it }
+        pendingPixelAspectRatioE4?.let { if (it != settings.pixelAspectRatioE4) settings.pixelAspectRatioE4 = it }
+        pendingStaticBSSID?.let { if (it != settings.staticBSSID) settings.staticBSSID = it }
+        pendingStaticP2pBSSID?.let { if (it != settings.staticP2pBSSID) settings.staticP2pBSSID = it }
+        pendingFullscreenMode?.let { if (it != settings.fullscreenMode) settings.fullscreenMode = it }
         val oldViewMode = settings.viewMode
-        pendingViewMode?.let { settings.viewMode = it }
-        pendingForceSoftware?.let { settings.forceSoftwareDecoding = it }
-        pendingSoftwareVideoDecoder?.let { settings.softwareVideoDecoder = it }
-        pendingVideoCodec?.let { settings.videoCodec = it }
-        pendingFpsLimit?.let { settings.fpsLimit = it }
-        pendingBluetoothAddress?.let { settings.bluetoothAddress = it }
-        pendingEnableAudioSink?.let { settings.enableAudioSink = it }
-        pendingStaticAudioFocus?.let { settings.staticAudioFocus = it }
+        pendingViewMode?.let { if (it != settings.viewMode) settings.viewMode = it }
+        pendingForceSoftware?.let { if (it != settings.forceSoftwareDecoding) settings.forceSoftwareDecoding = it }
+        pendingSoftwareVideoDecoder?.let { if (it != settings.softwareVideoDecoder) settings.softwareVideoDecoder = it }
+        pendingVideoCodec?.let { if (it != settings.videoCodec) settings.videoCodec = it }
+        pendingFpsLimit?.let { if (it != settings.fpsLimit) settings.fpsLimit = it }
+        pendingBluetoothAddress?.let { if (it != settings.bluetoothAddress) settings.bluetoothAddress = it }
+        pendingBluetoothAnnounceSkip?.let {
+            if (it != BluetoothAnnouncePolicy.isSkip(settings.bluetoothAnnounceMode)) {
+                settings.bluetoothAnnounceMode = BluetoothAnnouncePolicy.storedValue(it)
+            }
+        }
+        pendingEnableAudioSink?.let { if (it != settings.enableAudioSink) settings.enableAudioSink = it }
+        pendingStaticAudioFocus?.let { if (it != settings.staticAudioFocus) settings.staticAudioFocus = it }
         // Re-picking the focus mode is the way back from a wrong verdict: AUTO learns that taking
         // system audio focus stops the phone's own playback and then stops asking for it, and two
         // tracks that happened to end quickly can teach it that wrongly.
         val focusModeChanged = pendingPlaybackFocusMode != null && pendingPlaybackFocusMode != settings.playbackFocusMode
-        pendingPlaybackFocusMode?.let { settings.playbackFocusMode = it }
+        pendingPlaybackFocusMode?.let { if (it != settings.playbackFocusMode) settings.playbackFocusMode = it }
         if (focusModeChanged) settings.playbackFocusSelfDefeating = false
-        pendingUseAacAudio?.let { settings.useAacAudio = it }
-        pendingUseAAudioOutput?.let { settings.useAAudioOutput = it }
-        pendingAttachHwDspEqualizer?.let { settings.attachHwDspEqualizer = it }
-        pendingMicInputSource?.let { settings.micInputSource = it }
-        pendingEnableRotary?.let { settings.enableRotary = it }
-        pendingMediaKeyRouting?.let { settings.mediaKeyRouting = it }
-        pendingAudioLatencyMultiplier?.let { settings.audioLatencyMultiplier = it }
-        pendingAudioQueueCapacity?.let { settings.audioQueueCapacity = it }
-        pendingShowToastMessages?.let { settings.showToastMessages = it }
-        pendingScreenOrientation?.let { settings.screenOrientation = it }
+        pendingUseAacAudio?.let { if (it != settings.useAacAudio) settings.useAacAudio = it }
+        pendingUseAAudioOutput?.let { if (it != settings.useAAudioOutput) settings.useAAudioOutput = it }
+        pendingAttachHwDspEqualizer?.let { if (it != settings.attachHwDspEqualizer) settings.attachHwDspEqualizer = it }
+        pendingMicInputSource?.let { if (it != settings.micInputSource) settings.micInputSource = it }
+        pendingEnableRotary?.let { if (it != settings.enableRotary) settings.enableRotary = it }
+        pendingMediaKeyRouting?.let { if (it != settings.mediaKeyRouting) settings.mediaKeyRouting = it }
+        pendingAudioLatencyMultiplier?.let { if (it != settings.audioLatencyMultiplier) settings.audioLatencyMultiplier = it }
+        pendingAudioQueueCapacity?.let { if (it != settings.audioQueueCapacity) settings.audioQueueCapacity = it }
+        pendingShowToastMessages?.let { if (it != settings.showToastMessages) settings.showToastMessages = it }
+        pendingScreenOrientation?.let { if (it != settings.screenOrientation) settings.screenOrientation = it }
 
-        pendingMediaVolumeOffset?.let { settings.mediaVolumeOffset = it }
-        pendingGuidanceVolumeOffset?.let { settings.guidanceVolumeOffset = it }
-        pendingSystemVolumeOffset?.let { settings.systemVolumeOffset = it }
+        pendingMediaVolumeOffset?.let { if (it != settings.mediaVolumeOffset) settings.mediaVolumeOffset = it }
+        pendingGuidanceVolumeOffset?.let { if (it != settings.guidanceVolumeOffset) settings.guidanceVolumeOffset = it }
+        pendingSystemVolumeOffset?.let { if (it != settings.systemVolumeOffset) settings.systemVolumeOffset = it }
 
 
-        pendingAppLanguage?.let { settings.appLanguage = it }
+        pendingAppLanguage?.let { if (it != settings.appLanguage) settings.appLanguage = it }
 
         val hudMirroringChanged = pendingHudMirroring != null && pendingHudMirroring != settings.hudMirroring
 
         pendingEnableCarLauncher?.let {
-            settings.enableCarLauncher = it
+            if (it != settings.enableCarLauncher) settings.enableCarLauncher = it
             CarLauncherManager.setLauncherEnabled(requireContext(), it)
         }
-        pendingEnableFloatingButton?.let { settings.enableFloatingButton = it }
-        pendingFloatingButtonConnectionStatusMode?.let { settings.floatingButtonConnectionStatusMode = it }
-        pendingFloatingButtonDisconnectedOpacityPercent?.let { settings.floatingButtonDisconnectedOpacityPercent = it }
-        pendingFloatingButtonSizeDp?.let { settings.floatingButtonSizeDp = it }
-        pendingFloatingButtonOpacityPercent?.let { settings.floatingButtonOpacityPercent = it }
-        pendingFloatingButtonXPercent?.let { settings.floatingButtonXPercent = it }
-        pendingFloatingButtonYPercent?.let { settings.floatingButtonYPercent = it }
-        pendingAaExitAction?.let { settings.rawAaExitAction = it }
+        pendingEnableFloatingButton?.let { if (it != settings.enableFloatingButton) settings.enableFloatingButton = it }
+        pendingFloatingButtonConnectionStatusMode?.let { if (it != settings.floatingButtonConnectionStatusMode) settings.floatingButtonConnectionStatusMode = it }
+        pendingFloatingButtonDisconnectedOpacityPercent?.let { if (it != settings.floatingButtonDisconnectedOpacityPercent) settings.floatingButtonDisconnectedOpacityPercent = it }
+        pendingFloatingButtonSizeDp?.let { if (it != settings.floatingButtonSizeDp) settings.floatingButtonSizeDp = it }
+        pendingFloatingButtonOpacityPercent?.let { if (it != settings.floatingButtonOpacityPercent) settings.floatingButtonOpacityPercent = it }
+        pendingFloatingButtonXPercent?.let { if (it != settings.floatingButtonXPercent) settings.floatingButtonXPercent = it }
+        pendingFloatingButtonYPercent?.let { if (it != settings.floatingButtonYPercent) settings.floatingButtonYPercent = it }
+        pendingAaExitAction?.let { if (it != settings.rawAaExitAction) settings.rawAaExitAction = it }
         FloatingButtonManager.update(requireContext())
-        pendingVideoFitMode?.let { settings.videoFitMode = it }
-        pendingForcedScale?.let { settings.forcedScale = it }
-        pendingHudMirroring?.let { settings.hudMirroring = it }
+        pendingVideoFitMode?.let { if (it != settings.videoFitMode) settings.videoFitMode = it }
+        pendingForcedScale?.let { if (it != settings.forcedScale) settings.forcedScale = it }
+        pendingHudMirroring?.let { if (it != settings.hudMirroring) settings.hudMirroring = it }
 
-        pendingKillOnDisconnect?.let { settings.rawKillOnDisconnect = it }
-        pendingAutoKillOemApps?.let { settings.autoKillOemApps = it }
-        pendingRaiseProjectionDuringCall?.let { settings.raiseProjectionDuringCall = it }
-        pendingAutoEnableHotspot?.let { settings.autoEnableHotspot = it }
-        pendingFakeSpeed?.let { settings.fakeSpeed = it }
-        pendingUseLibusb?.let { settings.useLibusb = it }
-        pendingNarrowBandProfileCap?.let { settings.narrowBandProfileCap = it }
-        pendingDebugVideoLowLatency?.let { settings.debugVideoLowLatency = it }
-        pendingAllowExternalConfiguration?.let { settings.allowExternalConfiguration = it }
-        pendingKeepDummyVpnDuringSession?.let { settings.keepDummyVpnDuringSession = it }
+        pendingKillOnDisconnect?.let { if (it != settings.rawKillOnDisconnect) settings.rawKillOnDisconnect = it }
+        pendingAutoKillOemApps?.let { if (it != settings.autoKillOemApps) settings.autoKillOemApps = it }
+        pendingRaiseProjectionDuringCall?.let { if (it != settings.raiseProjectionDuringCall) settings.raiseProjectionDuringCall = it }
+        pendingAutoEnableHotspot?.let { if (it != settings.autoEnableHotspot) settings.autoEnableHotspot = it }
+        pendingFakeSpeed?.let { if (it != settings.fakeSpeed) settings.fakeSpeed = it }
+        pendingUseLibusb?.let { if (it != settings.useLibusb) settings.useLibusb = it }
+        pendingNarrowBandProfileCap?.let { if (it != settings.narrowBandProfileCap) settings.narrowBandProfileCap = it }
+        pendingDebugVideoLowLatency?.let { if (it != settings.debugVideoLowLatency) settings.debugVideoLowLatency = it }
+        pendingAllowExternalConfiguration?.let { if (it != settings.allowExternalConfiguration) settings.allowExternalConfiguration = it }
+        pendingKeepDummyVpnDuringSession?.let { if (it != settings.keepDummyVpnDuringSession) settings.keepDummyVpnDuringSession = it }
 
         val wirelessConfigBefore = wirelessRearmConfig()
-        pendingWifiConnectionMode?.let { settings.wifiConnectionMode = it }
-        pendingHelperConnectionStrategy?.let { settings.helperConnectionStrategy = it }
-        pendingWaitForWifi?.let { settings.waitForWifiBeforeWifiDirect = it }
-        pendingWaitForWifiTimeout?.let { settings.waitForWifiTimeout = it }
-        pendingBluetoothManagerServiceName?.let { settings.bluetoothManagerServiceName = it }
-        pendingNativeAaIgnoreExternalBt?.let { settings.nativeAaIgnoreExternalBt = it }
-        pendingExternalBtZbtTransport?.let { settings.externalBtZbtTransport = it }
-        pendingExternalBtBlinkTransport?.let { settings.externalBtBlinkTransport = it }
-        pendingAnnounceConnectionConfiguration?.let { settings.announceConnectionConfiguration = it }
-        pendingNativeApTransport?.let { settings.nativeApStrategy = it }
-        pendingNativeDriverSelectionMode?.let { settings.nativeDriverSelectionMode = it }
-        pendingNativeDriverSelectionTimeout?.let { settings.nativeDriverSelectionTimeoutSec = it }
-        pendingNativePreferredDeviceMac?.let { settings.nativePreferredDeviceMac = it }
-        pendingWifiDirectBand?.let { settings.wifiDirectBand = it }
-        pendingWifiDirectStableIdentity?.let { settings.wifiDirectStableIdentity = it }
+        pendingWifiConnectionMode?.let { if (it != settings.wifiConnectionMode) settings.wifiConnectionMode = it }
+        pendingHelperConnectionStrategy?.let { if (it != settings.helperConnectionStrategy) settings.helperConnectionStrategy = it }
+        pendingWaitForWifi?.let { if (it != settings.waitForWifiBeforeWifiDirect) settings.waitForWifiBeforeWifiDirect = it }
+        pendingWaitForWifiTimeout?.let { if (it != settings.waitForWifiTimeout) settings.waitForWifiTimeout = it }
+        pendingBluetoothManagerServiceName?.let { if (it != settings.bluetoothManagerServiceName) settings.bluetoothManagerServiceName = it }
+        pendingNativeAaIgnoreExternalBt?.let { if (it != settings.nativeAaIgnoreExternalBt) settings.nativeAaIgnoreExternalBt = it }
+        pendingExternalBtZbtTransport?.let { if (it != settings.externalBtZbtTransport) settings.externalBtZbtTransport = it }
+        pendingExternalBtBlinkTransport?.let { if (it != settings.externalBtBlinkTransport) settings.externalBtBlinkTransport = it }
+        pendingNativeApTransport?.let { if (it != settings.nativeApStrategy) settings.nativeApStrategy = it }
+        pendingNativeDriverSelectionMode?.let { if (it != settings.nativeDriverSelectionMode) settings.nativeDriverSelectionMode = it }
+        pendingNativeDriverSelectionTimeout?.let { if (it != settings.nativeDriverSelectionTimeoutSec) settings.nativeDriverSelectionTimeoutSec = it }
+        pendingNativePreferredDeviceMac?.let { if (it != settings.nativePreferredDeviceMac) settings.nativePreferredDeviceMac = it }
+        pendingWifiDirectBand?.let { if (it != settings.wifiDirectBand) settings.wifiDirectBand = it }
+        pendingWifiDirectStableIdentity?.let { if (it != settings.wifiDirectStableIdentity) settings.wifiDirectStableIdentity = it }
         // The pair is written whole, null included, so a Reset really does hand the choice back.
         pendingWifiDirectIdentityUserSet?.let {
             val moved = settings.wifiDirectGroupIdentity != pendingWifiDirectGroupIdentity
-            settings.wifiDirectIdentityUserSet = it
-            settings.wifiDirectGroupIdentity = pendingWifiDirectGroupIdentity
+            if (it != settings.wifiDirectIdentityUserSet) settings.wifiDirectIdentityUserSet = it
+            if (moved) settings.wifiDirectGroupIdentity = pendingWifiDirectGroupIdentity
             if (moved) rotateWifiDirectIdentityNow()
         }
-        pendingStationStandDownMode?.let { settings.stationStandDownMode = it }
-        pendingHotspotBand?.let { settings.hotspotBand = it }
-        pendingFiveGhzChannel?.let { settings.fiveGhzChannel = it }
-        pendingHotspotSsid?.let { settings.hotspotSsid = it }
-        pendingHotspotPassword?.let { settings.hotspotPassword = it }
-        pendingHotspotInterface?.let { settings.hotspotInterface = it }
-        pendingInsetLeft?.let { settings.insetLeft = it }
-        pendingInsetTop?.let { settings.insetTop = it }
-        pendingInsetRight?.let { settings.insetRight = it }
-        pendingInsetBottom?.let { settings.insetBottom = it }
-        pendingHidePhoneSignal?.let { settings.hidePhoneSignal = it }
-        pendingHideBatteryLevel?.let { settings.hideBatteryLevel = it }
-        pendingHideClock?.let { settings.hideClock = it }
+        pendingStationStandDownMode?.let { if (it != settings.stationStandDownMode) settings.stationStandDownMode = it }
+        pendingHotspotBand?.let { if (it != settings.hotspotBand) settings.hotspotBand = it }
+        pendingFiveGhzChannel?.let { if (it != settings.fiveGhzChannel) settings.fiveGhzChannel = it }
+        pendingHotspotSsid?.let { if (it != settings.hotspotSsid) settings.hotspotSsid = it }
+        pendingHotspotPassword?.let { if (it != settings.hotspotPassword) settings.hotspotPassword = it }
+        pendingHotspotInterface?.let { if (it != settings.hotspotInterface) settings.hotspotInterface = it }
+        pendingInsetLeft?.let { if (it != settings.insetLeft) settings.insetLeft = it }
+        pendingInsetTop?.let { if (it != settings.insetTop) settings.insetTop = it }
+        pendingInsetRight?.let { if (it != settings.insetRight) settings.insetRight = it }
+        pendingInsetBottom?.let { if (it != settings.insetBottom) settings.insetBottom = it }
+        pendingHidePhoneSignal?.let { if (it != settings.hidePhoneSignal) settings.hidePhoneSignal = it }
+        pendingHideBatteryLevel?.let { if (it != settings.hideBatteryLevel) settings.hideBatteryLevel = it }
+        pendingHideClock?.let { if (it != settings.hideClock) settings.hideClock = it }
 
         settings.commit()
         AppLog.init(settings, requireContext().applicationContext)
@@ -826,7 +834,7 @@ class SettingsFragment : Fragment() {
         // recovery use via recreateProjectionView(). If another setting is already forcing a
         // restart below, that path covers it; with no active session the new value is simply
         // used on the next launch.
-        if (oldViewMode != settings.viewMode && !requiresRestart) {
+        if (oldViewMode != settings.viewMode && !requiresServiceRestart) {
             LocalBroadcastManager.getInstance(requireContext()).sendBroadcast(
                 Intent(QuickSettingsFragment.ACTION_SETTINGS_CHANGED)
                     .putExtra(QuickSettingsFragment.EXTRA_NEEDS_VIEW_RECREATE, true)
@@ -834,15 +842,11 @@ class SettingsFragment : Fragment() {
         }
 
         if (WirelessRearmPolicy.requiresRearm(wirelessConfigBefore, wirelessRearmConfig())) {
-            val intent = Intent(requireContext(), AapService::class.java).apply {
-                val mode = settings.wifiConnectionMode
-                action = if (mode != WifiLauncherMode.MANUAL && settings.showsWifi())
-                    AapService.ACTION_START_WIRELESS else AapService.ACTION_STOP_WIRELESS
-            }
-            requireContext().startService(intent)
+            AapService.applyWirelessSettings(requireContext(),
+                startWireless = settings.wifiConnectionMode != WifiLauncherMode.MANUAL && settings.showsWifi())
         }
 
-        if (requiresRestart) {
+        if (requiresServiceRestart) {
             if (App.provide(requireContext()).commManager.isConnected) {
                 ToastUtils.showToast(context, getString(R.string.stopping_service), Toast.LENGTH_SHORT, force = true)
                 val stopServiceIntent = Intent(requireContext(), AapService::class.java).apply {
@@ -852,13 +856,23 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        if (requiresRestart && !requiresServiceRestart) {
+            val manager = App.provide(requireContext()).commManager
+            val connected = manager.isConnected
+            manager.applyAudioSettings()
+            audioSessionEnded = connected && !manager.isConnected
+        }
+
         // Reset change tracking
         hasChanges = false
         requiresRestart = false
+        requiresServiceRestart = false
         updateSaveButtonState()
         updateSettingsList()
 
-        ToastUtils.showToast(context, getString(R.string.settings_saved), Toast.LENGTH_SHORT, force = true)
+        ToastUtils.showToast(context,
+            getString(if (audioSessionEnded) R.string.audio_settings_reconnect else R.string.settings_saved),
+            if (audioSessionEnded) Toast.LENGTH_LONG else Toast.LENGTH_SHORT, force = true)
 
         if (languageChanged || hudMirroringChanged) {
             requireActivity().recreate()
@@ -884,6 +898,7 @@ class SettingsFragment : Fragment() {
                         pendingVideoCodec != settings.videoCodec ||
                         pendingFpsLimit != settings.fpsLimit ||
                         pendingBluetoothAddress != settings.bluetoothAddress ||
+                        pendingBluetoothAnnounceSkip != BluetoothAnnouncePolicy.isSkip(settings.bluetoothAnnounceMode) ||
                         pendingEnableAudioSink != settings.enableAudioSink ||
                         pendingStaticAudioFocus != settings.staticAudioFocus ||
                         pendingPlaybackFocusMode != settings.playbackFocusMode ||
@@ -930,7 +945,6 @@ class SettingsFragment : Fragment() {
                         pendingNativeAaIgnoreExternalBt != settings.nativeAaIgnoreExternalBt ||
                         pendingExternalBtZbtTransport != settings.externalBtZbtTransport ||
                         pendingExternalBtBlinkTransport != settings.externalBtBlinkTransport ||
-                        pendingAnnounceConnectionConfiguration != settings.announceConnectionConfiguration ||
                         pendingNativeApTransport != settings.nativeApStrategy ||
                         pendingNativeDriverSelectionMode != settings.nativeDriverSelectionMode ||
                         pendingNativeDriverSelectionTimeout != settings.nativeDriverSelectionTimeoutSec ||
@@ -976,6 +990,26 @@ class SettingsFragment : Fragment() {
                           pendingAttachHwDspEqualizer != settings.attachHwDspEqualizer ||
                           pendingAudioLatencyMultiplier != settings.audioLatencyMultiplier ||
                           pendingAudioQueueCapacity != settings.audioQueueCapacity ||
+                          pendingInsetLeft != settings.insetLeft ||
+                          pendingInsetTop != settings.insetTop ||
+                          pendingInsetRight != settings.insetRight ||
+                          pendingInsetBottom != settings.insetBottom ||
+                          pendingWifiConnectionMode != settings.wifiConnectionMode ||
+                          pendingUseLibusb != settings.useLibusb
+
+        // Audio settings may end just the projection session. Service-level changes retain
+        // their broader restart policy and take precedence when both kinds are saved.
+        requiresServiceRestart = pendingResolution != settings.resolutionId ||
+                          pendingVideoFitMode != settings.videoFitMode ||
+                          pendingVideoCodec != settings.videoCodec ||
+                          pendingFpsLimit != settings.fpsLimit ||
+                          pendingDpi != settings.dpiPixelDensity ||
+                          pendingPixelAspectRatioE4 != settings.pixelAspectRatioE4 ||
+                          pendingStaticBSSID != settings.staticBSSID ||
+                          pendingStaticP2pBSSID != settings.staticP2pBSSID ||
+                          pendingForceSoftware != settings.forceSoftwareDecoding ||
+                          pendingSoftwareVideoDecoder != settings.softwareVideoDecoder ||
+                          pendingEnableRotary != settings.enableRotary ||
                           pendingInsetLeft != settings.insetLeft ||
                           pendingInsetTop != settings.insetTop ||
                           pendingInsetRight != settings.insetRight ||
@@ -1704,19 +1738,28 @@ class SettingsFragment : Fragment() {
         // Ungated, unlike the static BSSID above: this address is announced as carAddress in
         // every connection mode, and the setup QR's own refusal deep-links here by searching for
         // this row's title, which bypasses the Basic and Advanced tiers but not a construction gate.
+        // The checkbox trades hands-free calls for the phone's Media audio, on USB sessions only.
         val btAddress = pendingBluetoothAddress.orEmpty()
+        val keepMediaAudio = pendingBluetoothAnnounceSkip ?: false
+        val btAddressValue = btAddress.ifEmpty { getString(R.string.not_set) }
         items.add(SettingItem.SettingEntry(
             stableId = "bluetoothAddress",
             nameResId = R.string.bluetooth_address_s,
-            value = btAddress.ifEmpty { getString(R.string.not_set) },
-            searchKeywords = "bluetooth mac address car identity hands-free calls qr",
+            value = if (keepMediaAudio) "$btAddressValue · ${getString(R.string.usb_keep_phone_media_audio)}" else btAddressValue,
+            searchKeywords = "bluetooth mac address car identity hands-free calls qr usb media audio a2dp",
             onClick = { _ ->
                 DialogUtils.showTextInputDialogWithMessage(
                     requireContext(),
                     R.string.enter_bluetooth_mac,
                     R.string.bluetooth_address_message,
                     btAddress,
-                    { newVal ->
+                    DialogUtils.Checkbox(
+                        R.string.usb_keep_phone_media_audio,
+                        R.string.usb_keep_phone_media_audio_description,
+                        keepMediaAudio
+                    ),
+                    { newVal, keep ->
+                        pendingBluetoothAnnounceSkip = keep
                         // Validated at entry, for the reason the static BSSID row records: an
                         // address that is not MAC-shaped is announced verbatim and fails much later.
                         val trimmed = newVal.trim()
@@ -1731,21 +1774,6 @@ class SettingsFragment : Fragment() {
                         updateSettingsList()
                     }
                 )
-            }
-        ))
-
-        // Ungated like the address above: ServiceDiscoveryResponse carries these parameters on
-        // every transport, so a mode gate would hide the row from the connection it was asked for.
-        items.add(SettingItem.ToggleSettingEntry(
-            stableId = "announceConnectionConfiguration",
-            nameResId = R.string.announce_connection_configuration,
-            descriptionResId = R.string.announce_connection_configuration_description,
-            isChecked = pendingAnnounceConnectionConfiguration ?: settings.announceConnectionConfiguration,
-            searchKeywords = "ping timeout socket buffer link drop session stall scan connection",
-            onCheckedChanged = { isChecked ->
-                pendingAnnounceConnectionConfiguration = isChecked
-                checkChanges()
-                updateSettingsList()
             }
         ))
 
@@ -2064,7 +2092,7 @@ class SettingsFragment : Fragment() {
         items.add(SettingItem.SettingEntry(
             stableId = "dpiPixelDensity",
             nameResId = R.string.dpi,
-            value = if (pendingDpi == 0) getString(R.string.auto) else pendingDpi.toString(),
+            value = dpiRowValue(),
             onClick = {
                 try {
                     findNavController().navigate(R.id.action_settingsFragment_to_dpiSettingsFragment)
@@ -3387,6 +3415,35 @@ class SettingsFragment : Fragment() {
         updateSettingsList()
     }
 
+    /** The row shows what Android Auto receives and its dp canvas, after the margins. */
+    private fun dpiRowValue(): String {
+        val stored = pendingDpi ?: 0
+        val chosen = Settings.Resolution.fromId(pendingResolution ?: settings.resolutionId)
+        val (pw, ph) = realPanelResolution()
+        val res = if (chosen == null || chosen == Settings.Resolution.AUTO) {
+            com.andrerinas.openheadunit.utils.SystemOptimizer.recommendedResolution(pw, ph)
+        } else chosen
+        val preset = com.andrerinas.openheadunit.utils.OnboardingDisplayPolicy.initialPreset(
+            settings.displaySizePreset, com.andrerinas.openheadunit.utils.SystemOptimizer.DisplaySizePreset.SMALL_7_8
+        )
+        val portrait = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.projectsPortrait(
+            pendingScreenOrientation ?: settings.screenOrientation
+        )
+        val (ow, oh) = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.orientPanel(pw, ph, portrait)
+        val (vw, vh) = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.visibleSize(
+            pendingVideoFitMode ?: settings.videoFitMode, ow, oh, res.width, res.height
+        )
+        val d = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.decide(stored, preset, vw, vh)
+        val cw = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.canvasDp(vw, d.announced)
+        val ch = com.andrerinas.openheadunit.utils.AnnouncedDensityPolicy.canvasDp(vh, d.announced)
+        return when {
+            res.width <= 0 -> if (stored == 0) getString(R.string.auto) else stored.toString()
+            stored == 0 -> getString(R.string.dpi_row_auto_format, d.announced, cw, ch)
+            d.announced != stored -> getString(R.string.dpi_row_clamped_format, stored, d.announced, cw, ch)
+            else -> getString(R.string.dpi_row_value_format, stored, cw, ch)
+        }
+    }
+
     private fun realPanelResolution(): Pair<Int, Int> {
         val m = android.util.DisplayMetrics()
         try {
@@ -3594,6 +3651,7 @@ class SettingsFragment : Fragment() {
                 .setPositiveButton(R.string.discard) { _, _ ->
                     hasChanges = false
                     requiresRestart = false
+                    requiresServiceRestart = false
                     reloadPendingStateFromSettings()
                     updateSaveButtonState()
                     updateSettingsList()
@@ -3655,6 +3713,7 @@ class SettingsFragment : Fragment() {
 
         hasChanges = false
         requiresRestart = false
+        requiresServiceRestart = false
         reloadPendingStateFromSettings()
         updateSaveButtonState()
         updateSettingsList()
@@ -3674,6 +3733,7 @@ class SettingsFragment : Fragment() {
                 .setPositiveButton(R.string.discard) { _, _ ->
                     hasChanges = false
                     requiresRestart = false
+                    requiresServiceRestart = false
                     reloadPendingStateFromSettings()
                     updateSaveButtonState()
                     updateSettingsList()
@@ -3871,6 +3931,7 @@ class SettingsFragment : Fragment() {
 
         hasChanges = false
         requiresRestart = false
+        requiresServiceRestart = false
         reloadPendingStateFromSettings()
         updateSaveButtonState()
         updateSettingsList()
@@ -3919,12 +3980,8 @@ class SettingsFragment : Fragment() {
             insecureAaRfcommListener = snapshot.insecureAaRfcommListener,
         )
         if (WirelessRearmPolicy.requiresRearm(before, wirelessRearmConfig())) {
-            val intent = Intent(context, AapService::class.java).apply {
-                val mode = settings.wifiConnectionMode
-                action = if (mode != WifiLauncherMode.MANUAL && settings.showsWifi())
-                    AapService.ACTION_START_WIRELESS else AapService.ACTION_STOP_WIRELESS
-            }
-            context.startService(intent)
+            AapService.applyWirelessSettings(context,
+                startWireless = settings.wifiConnectionMode != WifiLauncherMode.MANUAL && settings.showsWifi())
         }
     }
 
