@@ -57,6 +57,7 @@ import com.andrerinas.openheadunit.utils.ToastUtils
 import com.andrerinas.openheadunit.view.OverlayTouchView
 import com.andrerinas.openheadunit.view.PerformanceOverlay
 import com.andrerinas.openheadunit.utils.HeadUnitScreenConfig
+import com.andrerinas.openheadunit.utils.ProjectionHealthRecorder
 import com.andrerinas.openheadunit.utils.SystemUI
 import com.andrerinas.openheadunit.aap.AapService
 import android.content.IntentFilter
@@ -251,6 +252,13 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
 
     private var lastSurfaceSetMs = 0L
     private val relaunchRecovery = com.andrerinas.openheadunit.decoder.video.SurfaceRecoveryState()
+
+    /** The service revokes the retained WPP lease before publishing Disconnected. */
+    private fun requestProjectionExit() {
+        ContextCompat.startForegroundService(this, Intent(this, AapService::class.java).apply {
+            action = AapService.ACTION_DISCONNECT
+        })
+    }
 
     /**
      * A relaunch handed the decoder a fresh surface and no picture has followed it.
@@ -499,6 +507,34 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         }
     }
 
+    /**
+     * Opened with no session. Without this the loading screen stayed up over black for as long as
+     * the user let it (#1147), since nothing else ends a session that never started.
+     */
+    private fun onOpenedWithoutSession(state: CommManager.ConnectionState.Disconnected) {
+        val expectsSession = intent?.getBooleanExtra(EXTRA_EXPECT_SESSION, false) == true
+        when (ProjectionColdOpenPolicy.onOpenedWithoutSession(expectsSession, state.isSettingsRestart)) {
+            ProjectionColdOpenPolicy.Action.WAIT -> {
+                AppLog.i(
+                    "AapProjectionActivity: opened before the session (expected=$expectsSession, " +
+                        "settings restart=${state.isSettingsRestart}), waiting for it under the reconnect grace."
+                )
+                reconnectIsUsb = settings.lastConnectionType == Settings.CONNECTION_TYPE_USB
+                disconnectedAtMs = SystemClock.elapsedRealtime()
+                lastReconnectProgressAtMs = 0L
+                watchdogHandler.removeCallbacks(exitRunnable)
+                watchdogHandler.postDelayed(exitRunnable, ProjectionWatchdogPolicy.WATCHDOG_TICK_MS)
+            }
+            ProjectionColdOpenPolicy.Action.LEAVE -> {
+                AppLog.i("AapProjectionActivity: opened with no session and none on its way, going back to the home screen.")
+                startActivity(Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                })
+                finish()
+            }
+        }
+    }
+
     /** The AOA switch runs with the session still Disconnected, so the claim is the only sign of it. */
     private fun noteReconnectProgressIfSwitching() {
         if (reconnectIsUsb && UsbSwitchClaim.isLive()) noteReconnectProgress("a USB switch is in flight")
@@ -728,11 +764,11 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         val reason = if (collapsed) "$longFramesInWindow slow frames in window" else "no draw for ${now - effectiveDrawn}ms"
 
         val effectiveMode = forcedViewModeOverride ?: settings.viewMode
-        // After a plain rebuild fails to stick, escalate away from a non-SurfaceView backend
-        // (unless the bundled software HEVC decoder is active, which needs the GLES YUV sink).
-        val shouldFallBack = displayStallRecoveries >= 2 &&
-            effectiveMode != Settings.ViewMode.SURFACE &&
-            !videoDecoder.usingBundledSoftwareHevc
+        // Both MediaCodec and FFmpeg can render to a Surface after a consumer stalls.
+        val shouldFallBack = ProjectionWatchdogPolicy.shouldFallBackToSurface(
+            displayStallRecoveries, effectiveMode == Settings.ViewMode.SURFACE
+        )
+        ProjectionHealthRecorder.noteRendererRecovery(shouldFallBack)
         if (shouldFallBack) {
             AppLog.w("Display stall ($reason) again on $effectiveMode. Falling back to SurfaceView for this session. See issue #650.")
             forcedViewModeOverride = Settings.ViewMode.SURFACE
@@ -1092,7 +1128,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
                     isFirstEmission = false
 
                     if (first && state is CommManager.ConnectionState.Disconnected) {
-                        AppLog.i("AapProjectionActivity: Ignoring initial Disconnected state from StateFlow replay.")
+                        onOpenedWithoutSession(state)
                         return@collect
                     }
 
@@ -1217,7 +1253,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         setupCustomLoadingScreen()
 
         findViewById<Button>(R.id.disconnect_button)?.setOnClickListener {
-            commManager.disconnect()
+            requestProjectionExit()
             finish()
         }
 
@@ -1323,7 +1359,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         RenameNotice.maybeShow(this, App.provide(this).settings)
         Aa174Notice.maybeShow(this, App.provide(this).settings)
         applyStickyOrientation()
-        if (!isProjectionPausedByDevice && isSurfaceSet && commManager.isConnected) {
+        if (!isProjectionPausedByDevice && isSurfaceSet && commManager.connectionState.value is CommManager.ConnectionState.TransportStarted) {
             commManager.retakeVideoFocusForKeyframe()
         }
         resumedAtMs = SystemClock.elapsedRealtime()
@@ -1755,7 +1791,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
                 val selected = options[which]
                 when (selected.titleResId) {
                     R.string.exit_dialog_stop -> {
-                        commManager.disconnect(sendByeBye = true)
+                        requestProjectionExit()
                         finish()
                     }
                     R.string.exit_dialog_end_stay_armed -> {
@@ -2168,7 +2204,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
                 if (surfaceChanged) sendProjectionVideoFocus(gain = true, unsolicited = true)
             }
             else -> {
-                sendProjectionVideoFocus(gain = true, unsolicited = false)
+                // Not in a state where video focus can be sent
             }
         }
 
@@ -2451,6 +2487,9 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         /** Long enough for a surface callback to arrive first on a return, short enough to beat the stall window. */
         private const val RETURN_REARM_DELAY_MS = 300L
         const val EXTRA_FOCUS = "focus"
+
+        /** Set by a caller that opens this screen just before it starts a session. */
+        const val EXTRA_EXPECT_SESSION = "expect_session"
         @Volatile var isForeground = false
 
         /**
@@ -2558,7 +2597,7 @@ class AapProjectionActivity : SurfaceActivity(), IProjectionView.Callbacks, Vide
         container.addView(view)
         videoDecoder.softwareYuvFrameSink = projectionView as? SoftwareYuvFrameSink
         if (videoDecoder.softwareYuvFrameSink != null) {
-            AppLog.i("Using GLES YUV sink for bundled software HEVC")
+            AppLog.i("GLES YUV output sink attached")
         }
 
         projectionView.addCallback(this)

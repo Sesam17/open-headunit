@@ -15,6 +15,7 @@ import android.content.res.ColorStateList
 import android.widget.*
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.Gravity
 import android.view.LayoutInflater
 import androidx.lifecycle.repeatOnLifecycle
@@ -61,7 +62,10 @@ import kotlinx.coroutines.launch
 import com.andrerinas.openheadunit.utils.Settings
 import com.andrerinas.openheadunit.utils.ColorUtils
 import com.andrerinas.openheadunit.utils.HomeUiHelper
+import com.andrerinas.openheadunit.utils.ProjectionHealthPolicy
+import com.andrerinas.openheadunit.utils.ProjectionHealthStore
 import com.andrerinas.openheadunit.utils.ToastUtils
+import com.google.android.material.button.MaterialButton
 import com.andrerinas.openheadunit.utils.VpnControl
 import com.andrerinas.openheadunit.connection.self.SelfLaunchPath
 import com.andrerinas.openheadunit.connection.self.SelfLaunchRoutePolicy
@@ -94,8 +98,7 @@ class HomeFragment : Fragment() {
     private val vpnPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             AppLog.i("VPN permission granted. Starting DummyVpnService and Self Mode.")
-            VpnControl.startVpn(requireContext());
-            startSelfModeInternal()
+            startSelfModeInternal(needsDummyVpn = true)
         } else {
             AppLog.w("VPN permission denied. Offline Self Mode might fail.")
             ToastUtils.showToast(requireContext(), getString(R.string.failed_start_android_auto), Toast.LENGTH_LONG, force = true)
@@ -134,6 +137,9 @@ class HomeFragment : Fragment() {
     private var actionDialog: android.app.Dialog? = null
     private var manufacturerPickerLoading = false
     private var driverCountdownTimer: CountDownTimer? = null
+    private var healthCard: View? = null
+    private var healthMessage: TextView? = null
+    private var pendingHealthAction: ProjectionHealthPolicy.Action? = null
     private var homeInfoTicker: Job? = null
     private var gpsListener: LocationListener? = null
     private var gpsSpeedKmh: Int? = null
@@ -254,6 +260,19 @@ class HomeFragment : Fragment() {
             }
             notices.addOnLayoutChangeListener(listener)
             noticesLayoutListener = listener
+        }
+
+        // In MainActivity's notices, under the connection issue banner, so both home layouts
+        // show it the same way and it never covers the pill.
+        activity?.let { act ->
+            healthCard = act.findViewById(R.id.projection_health_card)
+            healthMessage = act.findViewById(R.id.projection_health_message)
+            act.findViewById<MaterialButton>(R.id.projection_health_apply)?.setOnClickListener {
+                applyProjectionHealthSuggestion()
+            }
+            act.findViewById<MaterialButton>(R.id.projection_health_later)?.setOnClickListener {
+                dismissProjectionHealthSuggestion()
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -661,10 +680,12 @@ class HomeFragment : Fragment() {
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     // A theme change recreates the activity, so the palette can be kept for the life of the view.
-    private fun homePalette(ctx: Context): HomeUiHelper.Palette = cachedPalette ?: run {
+    private fun homePalette(ctx: Context): HomeUiHelper.Palette {
         val appSettings = App.provide(ctx).settings
+        // The opacity is changed on another screen, so a palette cached before it is stale.
+        cachedPalette?.takeIf { it.surfaceOpacityPercent == appSettings.homeSurfaceOpacityPercent }?.let { return it }
         val mode = HomeThemePolicy.resolve(appSettings.appTheme, appSettings.useExtremeDarkMode, isNightActive())
-        HomeUiHelper.palette(ctx, mode).also { cachedPalette = it }
+        return HomeUiHelper.palette(ctx, mode, appSettings.homeSurfaceOpacityPercent).also { cachedPalette = it }
     }
 
     private fun updateLauncherViews() {
@@ -798,8 +819,9 @@ class HomeFragment : Fragment() {
      * - A small or narrow screen used as the launcher has no room for the main button and the
      *   favorite apps together, so the main button keeps the first page and the favorite apps and
      *   widgets get the next one.
-     * - A very wide unit gets two columns: the card on the driver's side and the favorites and
-     *   widgets beside it, so the width is used instead of left empty under a wide card.
+     * - A very wide unit (8:3, not 16:9) gets two columns: the card on the driver's side and the
+     *   favorites and widgets beside it, so the width is used instead of left empty under a wide
+     *   card.
      * - Everything else keeps the card on top and the favorites under it.
      *
      * Any widget page the driver added follows those. The pages are rebuilt here, so this runs
@@ -813,9 +835,11 @@ class HomeFragment : Fragment() {
 
         val small = config.screenHeightDp < COMPACT_HEIGHT_DP || config.screenWidthDp < COMPACT_WIDTH_DP
         val compact = isLauncherActive && small
-        val wide = isLauncherActive &&
-            config.orientation == Configuration.ORIENTATION_LANDSCAPE &&
-            config.screenWidthDp >= WIDE_WIDTH_DP
+        val wide = isLauncherActive && HomePagesPolicy.sideBySide(
+            config.orientation == Configuration.ORIENTATION_LANDSCAPE,
+            config.screenWidthDp,
+            config.screenHeightDp
+        )
         compactHome = compact
         ultrawideHome = wide
 
@@ -860,8 +884,8 @@ class HomeFragment : Fragment() {
      */
     private fun renderPages(root: View, appSettings: Settings, isLauncherActive: Boolean, area: View, main: LinearLayout) {
         val pager = root.findViewById<HomePager>(R.id.home_pager) ?: return
-        // With the favorites switch off the stored pages are left as they are, not even pruned.
-        val widgetsShown = appSettings.showHomeFavoriteApps
+        // With the widgets switch off the stored pages are left as they are, not even pruned.
+        val widgetsShown = appSettings.showHomeWidgets
         val stored = if (isLauncherActive && widgetsShown) prunePages(root.context, appSettings.homeWidgetPages) else emptyList()
         val pages = if (isLauncherActive) {
             HomePagesPolicy.pages(compactHome, stored.size, widgetRowOnItsOwnPage(appSettings), widgetsShown)
@@ -900,7 +924,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun widgetRowOnItsOwnPage(appSettings: Settings): Boolean =
-        widgetRowOverflows && !ultrawideHome && appSettings.showHomeFavoriteApps && appSettings.homeWidgets.isNotEmpty()
+        widgetRowOverflows && !ultrawideHome && appSettings.showHomeWidgets && appSettings.homeWidgets.isNotEmpty()
 
     private fun appsPage(ctx: Context, area: View): View = LinearLayout(ctx).apply {
         id = R.id.home_page_apps
@@ -1053,7 +1077,7 @@ class HomeFragment : Fragment() {
                 compactHome,
                 appSettings.homeWidgetPages.size,
                 widgetRowOnItsOwnPage(appSettings),
-                widgetsShown = appSettings.showHomeFavoriteApps
+                widgetsShown = appSettings.showHomeWidgets
             )
         val actions = mutableListOf<HomeActionDialog.Action>()
         if (canAdd) {
@@ -1089,7 +1113,9 @@ class HomeFragment : Fragment() {
     private fun showActions(title: String, actions: List<HomeActionDialog.Action>) {
         val ctx = context ?: return
         actionDialog?.dismiss()
-        actionDialog = HomeActionDialog.show(ctx, title, actions, homePalette(ctx))
+        // The menu stays opaque whatever the home's opacity, or it would vanish over the home.
+        val opaque = HomeUiHelper.palette(ctx, homePalette(ctx).mode)
+        actionDialog = HomeActionDialog.show(ctx, title, actions, opaque)
     }
 
     private fun addWidgetPage() {
@@ -1204,8 +1230,8 @@ class HomeFragment : Fragment() {
         row.removeAllViews()
         val appSettings = App.provide(ctx).settings
         // A widget can only be drawn in one place, and on this screen that place is its own page.
-        // The favorites switch turns the widgets off with the favorites, add tile included.
-        if (!appSettings.isCarLauncherActive || !appSettings.showHomeFavoriteApps || widgetRowOnItsOwnPage(appSettings)) {
+        // The widgets switch turns the row off, add tile included.
+        if (!appSettings.isCarLauncherActive || !appSettings.showHomeWidgets || widgetRowOnItsOwnPage(appSettings)) {
             scroll.visibility = View.GONE
             return
         }
@@ -1596,9 +1622,10 @@ class HomeFragment : Fragment() {
         startActivity(aapIntent)
     }
 
-    private fun startSelfModeInternal() {
+    private fun startSelfModeInternal(needsDummyVpn: Boolean = false) {
         val intent = Intent(requireContext(), AapService::class.java)
         intent.action = AapService.ACTION_START_SELF_MODE
+        intent.putExtra(AapService.EXTRA_SELF_MODE_VPN, needsDummyVpn)
         ContextCompat.startForegroundService(requireContext(), intent)
         AppLog.i("Auto start selfmode")
     }
@@ -1612,15 +1639,15 @@ class HomeFragment : Fragment() {
         val path = SelfLauncherManager.installedPath(requireContext())
         val offline = activeNetwork == null
 
-        if (SelfLaunchRoutePolicy.needsDummyVpn(path, offline, VpnControl.isVpnAvailable())) {
+        val needsDummyVpn = SelfLaunchRoutePolicy.needsDummyVpn(path, offline, VpnControl.isVpnAvailable())
+        if (needsDummyVpn) {
             AppLog.i("Device is offline. Preparing Dummy VPN for Self Mode.")
             val vpnIntent = VpnControl.consentIntent(requireContext())
             if (vpnIntent != null) {
                 vpnPermissionLauncher.launch(vpnIntent)
                 return
             } else {
-                AppLog.i("VPN permission already granted. Starting VPN service.")
-                VpnControl.startVpn(requireContext());
+                AppLog.i("VPN permission already granted. Self Mode will prepare it after launch admission.")
             }
         } else if (offline) {
             if (path == SelfLaunchPath.HEADUNIT_SERVER) {
@@ -1629,7 +1656,7 @@ class HomeFragment : Fragment() {
                 AppLog.i("Device is offline and VPN is not available in this build. Self Mode may fail.")
             }
         }
-        startSelfModeInternal()
+        startSelfModeInternal(needsDummyVpn)
     }
 
     /**
@@ -1712,9 +1739,10 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * @return `true` if a single-USB connection attempt was dispatched,
-     *   `false` if guards (setting disabled, disclaimer pending, already
-     *   connected) blocked it. Same intent as [attemptAutoConnect].
+     * @return `true` if a single-USB connection attempt was dispatched to the one device that is
+     *   plugged in, `false` if guards (setting disabled, disclaimer pending, already connected)
+     *   blocked it or there is not exactly one device to connect to. Same intent as
+     *   [attemptAutoConnect].
      */
     private fun attemptSingleUsbAutoConnect(): Boolean {
         val ctx = context ?: return false
@@ -1728,7 +1756,16 @@ class HomeFragment : Fragment() {
             Intent(ctx, AapService::class.java).apply {
                 action = AapService.ACTION_CHECK_USB
             })
-        return true
+        // The check is cheap and the service decides, but the full-screen loading overlay is a
+        // promise that a phone is there. With nothing plugged in it sat black over the home for
+        // its whole 30 s on every launch (#1147).
+        val usbManager = UsbDeviceCompat.usbManager(ctx)
+        val connectable = usbManager?.deviceList?.values?.count { UsbDeviceCompat.isConnectable(ctx, it) } ?: 0
+        val showsOverlay = AutoConnectAttemptPolicy.singleUsbShowsOverlay(connectable)
+        if (!showsOverlay) {
+            AppLog.i("HomeFragment: single-USB auto-connect found $connectable connectable devices, so no loading screen")
+        }
+        return showsOverlay
     }
 
     private fun setupListeners() {
@@ -2060,6 +2097,7 @@ class HomeFragment : Fragment() {
                 Aa174Notice.maybeShow(act, App.provide(requireContext()).settings)
             }
         }
+        refreshProjectionHealthSuggestion()
         // After the notices above and any auto-connect have had their moment.
         root.removeCallbacks(pagesHintCheck)
         root.postDelayed(pagesHintCheck, PAGES_HINT_DELAY_MS)
@@ -2081,7 +2119,7 @@ class HomeFragment : Fragment() {
             alreadyShown = appSettings.homePagesHintShown,
             launcherActive = appSettings.isCarLauncherActive,
             widgetsSupported = HomeWidgets.supported(),
-            appsAndWidgetsOn = appSettings.showHomeFavoriteApps,
+            widgetsOn = appSettings.showHomeWidgets,
             connected = commManager.isConnected,
             status = decision?.status,
             bringUpRunning = ConnectionStageTracker.stage.value != null || MainActivity.overlayOwnsScreen(),
@@ -2315,6 +2353,7 @@ class HomeFragment : Fragment() {
         // built in onResume.
         HomeWidgets.startListening(requireContext())
         reportBringUpOwner(started = true)
+        activity?.window?.decorView?.viewTreeObserver?.addOnGlobalLayoutListener(issueBannerWatcher)
     }
 
     override fun onDestroyView() {
@@ -2331,6 +2370,12 @@ class HomeFragment : Fragment() {
         mainViewModel.homeShowsBringUp.value = false
         // Started again by the next render, once the home is back on screen.
         view?.let { HomeUiHelper.stopShines(it) }
+        activity?.window?.decorView?.viewTreeObserver?.let {
+            if (it.isAlive) it.removeOnGlobalLayoutListener(issueBannerWatcher)
+        }
+        lastIssueBannerUp = null
+        // The card sits in MainActivity's notices, so it would stay up over the next screen.
+        healthCard?.visibility = View.GONE
     }
 
     override fun onPause() {
@@ -2354,6 +2399,100 @@ class HomeFragment : Fragment() {
         HomeUiHelper.applyTheme(root.context, root, homePalette(root.context))
         // The bar can only be fitted once it has a height to fit into.
         root.doOnLayout { HomeUiHelper.fitDriverBar(it, homeSettings.homeButtonScalePercent) }
+    }
+
+    private fun refreshProjectionHealthSuggestion() {
+        val card = healthCard ?: return
+        // The connection issue banner sits in the same place and says what stops the next
+        // connection, which matters more than a setting for the next projection.
+        val issueBannerUp = activity?.findViewById<View>(R.id.connection_issue_banner)
+            ?.visibility == View.VISIBLE
+        if (commManager.isConnected || issueBannerUp) {
+            pendingHealthAction = null
+            card.visibility = View.GONE
+            return
+        }
+        val appSettings = App.provide(requireContext()).settings
+        val action = ProjectionHealthPolicy.evaluate(
+            ProjectionHealthStore(requireContext()).state(appSettings)
+        )
+        if (action == null) {
+            pendingHealthAction = null
+            card.visibility = View.GONE
+            return
+        }
+        pendingHealthAction = action
+        healthMessage?.text = getString(healthMessageRes(action))
+        card.visibility = View.VISIBLE
+    }
+
+    /**
+     * Follows the connection issue banner: it comes and goes on its own, and this one has to step
+     * aside while it is up and come back once it is gone. A layout pass is the one signal both have.
+     */
+    private val issueBannerWatcher = ViewTreeObserver.OnGlobalLayoutListener {
+        val up = activity?.findViewById<View>(R.id.connection_issue_banner)?.visibility == View.VISIBLE
+        if (up != lastIssueBannerUp) {
+            lastIssueBannerUp = up
+            refreshProjectionHealthSuggestion()
+        }
+    }
+    private var lastIssueBannerUp: Boolean? = null
+
+    private fun applyProjectionHealthSuggestion() {
+        val action = pendingHealthAction ?: return
+        val appSettings = App.provide(requireContext()).settings
+        when (action) {
+            ProjectionHealthPolicy.Action.CODEC_H264 -> {
+                appSettings.videoCodec = "H.264"
+                // Android Auto forces H.265 above Full HD, so H.264 only takes effect if the
+                // resolution comes down with it.
+                val stored = Settings.Resolution.fromId(appSettings.resolutionId)
+                when {
+                    stored == null || stored == Settings.Resolution.AUTO -> {
+                        val panel = ProjectionHealthStore(requireContext())
+                            .state(appSettings)
+                            .panelCeiling
+                        if (panel.width > Settings.Resolution._1920x1080.width) {
+                            appSettings.resolutionId = Settings.Resolution._1920x1080.id
+                        }
+                    }
+                    stored.width > Settings.Resolution._1920x1080.width ->
+                        appSettings.resolutionId = Settings.Resolution._1920x1080.id
+                }
+            }
+            ProjectionHealthPolicy.Action.RENDERER_SURFACE -> {
+                appSettings.viewMode = Settings.ViewMode.SURFACE
+                appSettings.pendingRendererConfirm = true
+            }
+            ProjectionHealthPolicy.Action.FPS_30 -> appSettings.fpsLimit = 30
+            ProjectionHealthPolicy.Action.RESOLUTION_720 ->
+                appSettings.resolutionId = Settings.Resolution._1280x720.id
+        }
+        appSettings.commit()
+        ProjectionHealthStore(requireContext()).dismiss(action)
+        pendingHealthAction = null
+        healthCard?.visibility = View.GONE
+        ToastUtils.showToast(
+            requireContext(),
+            R.string.projection_health_applied,
+            force = true,
+        )
+    }
+
+    private fun dismissProjectionHealthSuggestion() {
+        val action = pendingHealthAction ?: return
+        ProjectionHealthStore(requireContext()).dismiss(action)
+        pendingHealthAction = null
+        healthCard?.visibility = View.GONE
+    }
+
+    /** What went wrong and what the button changes, in the words Settings uses for it. */
+    private fun healthMessageRes(action: ProjectionHealthPolicy.Action): Int = when (action) {
+        ProjectionHealthPolicy.Action.CODEC_H264 -> R.string.projection_health_suggest_h264
+        ProjectionHealthPolicy.Action.RENDERER_SURFACE -> R.string.projection_health_suggest_surface
+        ProjectionHealthPolicy.Action.FPS_30 -> R.string.projection_health_suggest_fps30
+        ProjectionHealthPolicy.Action.RESOLUTION_720 -> R.string.projection_health_suggest_720p
     }
 
     /** The offered phones an automatic pick may name, from the same wake list the poke loop reads. */
@@ -2483,9 +2622,9 @@ class HomeFragment : Fragment() {
         val deviceListView = dialogView.findViewById<ListView>(R.id.driverDeviceList)
         val btnToggleFilter = dialogView.findViewById<TextView>(R.id.btnToggleFilter)
 
-        val brandTeal = ContextCompat.getColor(requireContext(), R.color.brand_teal)
+        val brandPrimary = ContextCompat.getColor(requireContext(), R.color.brand_primary)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            countdownProgress.progressTintList = ColorStateList.valueOf(brandTeal)
+            countdownProgress.progressTintList = ColorStateList.valueOf(brandPrimary)
         }
 
         val connectedMacSet = connectedMacs.toSet()
@@ -2509,7 +2648,7 @@ class HomeFragment : Fragment() {
                 when (NativeDriverSelectionPolicy.presenceOf(device.address, connectedMacSet, presenceReadable)) {
                     NativeDriverSelectionPolicy.DriverPresence.CONNECTED -> {
                         statusView.text = "🟢 " + context.getString(R.string.driver_device_connected)
-                        statusView.setTextColor(ContextCompat.getColor(context, R.color.brand_teal))
+                        statusView.setTextColor(ContextCompat.getColor(context, R.color.brand_primary))
                     }
                     NativeDriverSelectionPolicy.DriverPresence.DISCONNECTED -> {
                         statusView.text = context.getString(R.string.driver_device_disconnected)
@@ -2817,13 +2956,13 @@ class HomeFragment : Fragment() {
         val connectionProgress = dialogView.findViewById<ProgressBar>(R.id.connectionProgress)
 
         // Ensure the loading spinner is visible in both Light and Dark modes by forcing our brand color.
-        val brandTeal = ContextCompat.getColor(requireContext(), R.color.brand_teal)
+        val brandPrimary = ContextCompat.getColor(requireContext(), R.color.brand_primary)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            connectionProgress.indeterminateTintList = ColorStateList.valueOf(brandTeal)
+            connectionProgress.indeterminateTintList = ColorStateList.valueOf(brandPrimary)
             connectionProgress.indeterminateTintMode = android.graphics.PorterDuff.Mode.SRC_IN
         } else {
             @Suppress("DEPRECATION")
-            connectionProgress.indeterminateDrawable?.setColorFilter(brandTeal, android.graphics.PorterDuff.Mode.SRC_IN)
+            connectionProgress.indeterminateDrawable?.setColorFilter(brandPrimary, android.graphics.PorterDuff.Mode.SRC_IN)
         }
 
         // Custom adapter to handle rounded backgrounds like in USB/Network lists
@@ -2936,8 +3075,6 @@ class HomeFragment : Fragment() {
         private const val PAGES_HINT_PREFERRED_SPOT_DP = 120
 
         private const val COMPACT_WIDTH_DP = 400
-        /** Where the unit is wide enough for the card and the favorites side by side. */
-        private const val WIDE_WIDTH_DP = 1100
         /** The idle page dots, about half as bright as the muted text. */
         private const val DOT_IDLE_ALPHA = 0x80
         fun resetAutoStart() {

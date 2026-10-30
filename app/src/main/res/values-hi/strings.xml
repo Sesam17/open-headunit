@@ -7,6 +7,12 @@
     <string name="settings_tab_basic">बेसिक</string>
     <string name="settings_tab_advanced">ऐडवांस</string>
     <string name="settings_search_hint">सेटिंग्स खोजें</string>
+    <string name="settings_scope_wifi_hidden">USB सेटिंग्स दिखाई जा रही हैं। WiFi सेटिंग्स छिपी हैं।</string>
+    <string name="settings_scope_usb_hidden">WiFi सेटिंग्स दिखाई जा रही हैं। USB सेटिंग्स छिपी हैं।</string>
+    <string name="settings_scope_usb_wifi_hidden">सेल्फ़ मोड सेटिंग्स दिखाई जा रही हैं। USB और WiFi सेटिंग्स छिपी हैं।</string>
+    <string name="settings_scope_change">बदलें</string>
+    <string name="settings_search_clear">खोज साफ़ करें</string>
+    <string name="settings_search_no_results">\"%1$s\" से कोई सेटिंग मेल नहीं खाती।</string>
 
     <!-- Connection mode selector -->
     <string name="connection_mode">कनेक्शन मोड</string>
@@ -28,6 +34,32 @@
     <string name="onb_connection_cable_detail">फ़ोन यूएसबी केबल से सीधे हेड यूनिट से जुड़ा है। वायरलेस विकल्प छिपे रहेंगे।</string>
     <string name="onb_connection_adapter_detail">एक यूएसबी डोंगल केबल को वायरलेस कनेक्शन से जोड़ता है। वायरलेस विकल्प दिखाए जाते हैं।</string>
     <string name="onb_connection_wifi_detail">फ़ोन वाई-फ़ाई पर कनेक्ट होता है।</string>
+    <string name="onb_video_title">वीडियो परीक्षण</string>
+    <string name="onb_video_help">ऐप कुछ छोटे क्लिप उस डिकोडर और रेंडरर से चलाता है जिन्हें वह अभी इस्तेमाल करेगा। इससे पता चलता है कि यह यूनिट असल में क्या चलाती है, न कि जो वह बताती है।</string>
+    <string name="onb_video_preparing">परीक्षण की तैयारी हो रही है...</string>
+    <string name="onb_video_running">%1$s को %2$s पर जाँचा जा रहा है...</string>
+    <string name="onb_video_idle">परीक्षण नहीं चला।</string>
+    <string name="onb_video_note_h265_failed">H.265 नहीं चला, इसलिए परीक्षण H.264 का सुझाव देता है।</string>
+    <string name="onb_video_note_resolution_capped">पैनल इस यूनिट की डिकोड क्षमता से ज़्यादा माँगता है, इसलिए परीक्षण रिज़ॉल्यूशन को %1$s तक सीमित करता है।</string>
+    <string name="onb_video_note_renderer_changed">%1$s ने तस्वीर नहीं बनाई, इसलिए परीक्षण %2$s का सुझाव देता है।</string>
+    <string name="onb_video_note_high_res_unverified">H.265 ने 1080p पर काम किया। पैनल का ज़्यादा रिज़ॉल्यूशन जाँचा नहीं गया।</string>
+    <string name="onb_video_note_unverified">डिकोडर ने फ़्रेम बनाए, लेकिन Android का यह संस्करण तस्वीर वापस पढ़ नहीं सकता, इसलिए परीक्षण उन्हें सत्यापित नहीं कर सका।</string>
+    <string name="onb_video_note_not_tested">कुछ भी पास नहीं हुआ, इसलिए मौजूदा सेटिंग्स नहीं बदलीं।</string>
+    <string name="onb_video_summary_pass">यह यूनिट %1$s को %2$s पर चलाती है</string>
+    <string name="onb_video_summary_none">कोई भी क्लिप ठीक से नहीं चली</string>
+    <string name="onb_video_frames">%2$d में से %1$d फ़्रेम</string>
+    <string name="onb_video_row_ok">ठीक से चली</string>
+    <string name="onb_video_row_no_picture">कोई तस्वीर नहीं</string>
+    <string name="onb_video_row_decoder">डिकोडर विफल रहा</string>
+    <string name="onb_video_row_few_frames">फ़्रेम छूट गए</string>
+    <string name="onb_video_row_bad_picture">तस्वीर गलत आई</string>
+    <string name="onb_video_row_unverified">चली, जाँच नहीं हो सकी</string>
+    <string name="onb_video_summary_view_mode">व्यू मोड: %1$s</string>
+    <string name="onb_video_apply">सुझाई गई सेटिंग्स लागू करें</string>
+    <string name="onb_video_run">परीक्षण चलाएँ</string>
+    <string name="onb_video_again">परीक्षण फिर चलाएँ</string>
+    <string name="onb_video_skip">परीक्षण छोड़ें</string>
+    <string name="onb_video_error">परीक्षण नहीं चल सका: %1$s</string>
     <string name="onb_display_title">डिसप्ले</string>
     <!-- %1$d width, %2$d height, %3$d dpi, %4$s codec -->
     <string name="onb_display_detected">पहचाना गया पैनल: %1$d x %2$d px, %3$d dpi, हार्डवेयर %4$s।</string>
@@ -188,6 +220,13 @@
     <string name="remove_from_blacklist">ब्लैकलिस्ट से हटाएं</string>
     <string name="usb_device_action_title">यूएसबी डिवाइस की कार्रवाई</string>
     <string name="exit">बाहर निकलें</string>
+    <string name="projection_health_apply">लागू करें</string>
+    <string name="projection_health_suggest_h264">आपके पिछले कनेक्शनों में H.265 डिकोड करने में दिक्कत हुई। क्या वीडियो को H.264 पर करें?</string>
+    <string name="projection_health_suggest_surface">आपके पिछले कनेक्शनों में तस्वीर रुक गई या काली हो गई। क्या व्यू मोड को SurfaceView पर करें?</string>
+    <string name="projection_health_suggest_fps30">आपके पिछले कनेक्शनों में तस्वीर अटकी। क्या इसे 30 fps तक सीमित करें?</string>
+    <string name="projection_health_suggest_720p">आपके पिछले कनेक्शनों में तस्वीर अटकी। क्या रिज़ॉल्यूशन 720p तक घटाएँ?</string>
+    <string name="projection_health_later">अभी नहीं</string>
+    <string name="projection_health_applied">लागू किया गया। अगला प्रोजेक्शन इसे इस्तेमाल करेगा।</string>
     <string name="apps">ऐप्स</string>
     <string name="no_apps_found">कोई ऐप नहीं मिला</string>
     <string name="video">Android Auto</string>
@@ -212,6 +251,16 @@
     <string name="current_light_reading">मौजूदा रोशनी: %d Lux</string>
     <string name="current_brightness_reading">स्क्रीन की मौजूदा रोशनी: %d / 255</string>
     <string name="enable_fine_lux_control">सटीक नियंत्रण (0–100 Lux)</string>
+    <string name="car_signal_calibration_info_format">वर्तमान car_mode: %1$d. मैपिंग: %2$s.</string>
+    <string name="car_signal_mapping_default">0 = दिन, शून्य नहीं = रात</string>
+    <string name="car_signal_mapping_inverted">0 = रात, शून्य नहीं = दिन</string>
+    <string name="car_signal_unavailable">इस हेड यूनिट पर अभी car_mode पढ़ा नहीं जा सकता।</string>
+    <string name="car_signal_headlights_question">क्या अभी हेडलाइट्स चालू हैं?</string>
+    <string name="car_signal_calibration_title">ILL+ कैलिब्रेशन</string>
+    <string name="car_signal_recalibrate">पुनः कैलिब्रेट करें</string>
+    <string name="car_signal_headlights_on">चालू</string>
+    <string name="car_signal_headlights_off">बंद</string>
+    <string name="car_signal_calibration_saved">ILL+ कैलिब्रेशन सहेजा गया और लागू किया गया</string>
     <string name="night_mode_start">नाइट मोड प्रारंभ समय</string>
     <string name="night_mode_end">नाइट मोड समाप्ति समय</string>
 
@@ -311,6 +360,7 @@
     <string name="orientation_portrait">पोर्ट्रेट (90°)</string>
     <string name="orientation_portrait_reverse">रिवर्स पोर्ट्रेट (270°)</string>
     <string name="enter_dpi_value">DPI मान दर्ज करें (ऑटो के लिए 0)</string>
+    <string name="enter_audio_offset_value">मान दर्ज करें (0-250)</string>
     <string name="enter_pixel_aspect_ratio_value">पिक्सल आस्पेक्ट रेशियो x10000 (10000 = चौकोर पिक्सल)</string>
     <string name="custom_margin">कस्टम मार्जिन</string>
     <string name="custom_margin_description">कस्टम डिस्प्ले मार्जिन सेट करें (ऑटो के लिए 0)।</string>
@@ -605,7 +655,19 @@
 
     <!-- Onboarding: audio step -->
     <string name="onb_audio_title">ऑडियो</string>
-    <string name="onb_audio_help">चुनें कि हर Android Auto चैनल किस सिस्टम स्ट्रीम पर चले, और सुनने के लिए स्पीकर पर टैप करें। कार में कोई चैनल शांत रहे, तो उसे दूसरी स्ट्रीम पर ले जाने से आमतौर पर बात बन जाती है।</string>
+    <string name="onb_audio_help">आइए जाँचें कि इस यूनिट पर Android Auto की आवाज़ सही है। शुरू करने से पहले रेडियो का वॉल्यूम बढ़ा दें।</string>
+    <string name="onb_audio_output_title">आउटपुट</string>
+    <string name="onb_audio_aaudio_help">AAudio का उपयोग करता है, ताकि आवाज़ जल्दी प्रतिक्रिया दे। चटकने पर इसे बंद करें।</string>
+    <string name="onb_audio_output_test">टेस्ट टोन चलाएँ</string>
+    <string name="onb_audio_output_testing">%1$s से चला रहे हैं...</string>
+    <string name="onb_audio_output_ok">%1$s से चलाया गया।</string>
+    <string name="onb_audio_output_fallback">AAudio नहीं खुला, इसलिए टेस्ट ने AudioTrack इस्तेमाल किया।</string>
+    <string name="onb_audio_output_skipped_aaudio">AAudio से बजा, लेकिन आवाज़ बीच में रुकी। अगर चटक रही हो, तो AAudio बंद करें।</string>
+    <string name="onb_audio_output_skipped">AudioTrack से बजा, लेकिन आवाज़ बीच में रुकी। फिर से बजाकर देखें कि क्या हर बार ऐसा होता है।</string>
+    <string name="onb_audio_static_focus_short">अगर कार में Android Auto की आवाज़ बीच में चली जाती है तो इसे चालू करें। नेविगेशन बोलते समय यह संगीत भी धीमा करता है।</string>
+    <string name="onb_audio_focus_auto_short">ऐप तय करता है</string>
+    <string name="onb_audio_output_failed">टेस्ट टोन नहीं चल सका: %1$s</string>
+    <string name="onb_audio_focus_title">ऑडियो फ़ोकस</string>
     <string name="onb_audio_more_hint">इन्हें आप बाद में सेटिंग्स → ऑडियो स्ट्रीम में फिर से बदल सकते हैं।</string>
     <string name="use_aac_audio">AAC ऑडियो का उपयोग करें</string>
     <string name="use_aac_audio_description">बैंडविड्थ बचाने के लिए ऑडियो में AAC कोडेक इस्तेमाल करें (प्रायोगिक)। 2.4 GHz पर चल रहे वायरलेस सत्र में, \"2.4 GHz लिंक पर वीडियो कम करें\" चालू होने पर यह अपने-आप चालू रहता है।</string>
@@ -995,8 +1057,6 @@
     <string name="wait_for_wifi_description">बूट होने पर वाई-फ़ाई डायरेक्ट शुरू करने से पहले वाई-फ़ाई कनेक्ट होने का इंतज़ार करता है। अगर पावर चालू होने के बाद आपकी हेड यूनिट को वाई-फ़ाई से जुड़ने में कुछ सेकंड लगते हैं, तो इसे चालू करें।</string>
     <string name="wait_for_wifi_timeout">वाई-फ़ाई इंतज़ार की समय सीमा</string>
     <string name="wireless_24ghz_warning">नोट: 2.4GHz डिवाइस पर वायरलेस Android Auto में लैग, अटकना और डिसकनेक्ट होना हो सकता है। समस्या आए तो USB से जाँचें कि कहीं यह नेटवर्क की सीमा तो नहीं।</string>
-    <string name="fake_speed_title">वीडियो-लॉक बंद करें (नकली गति)</string>
-    <string name="fake_speed_description">फ़ोन को हमेशा कम गति (0.5 m/s) बताता है, ताकि गाड़ी चलाते समय वीडियो ब्लॉक न हो। सावधानी से इस्तेमाल करें।</string>
     <string name="wireless_mode_helper">वायरलेस हेल्पर</string>
     <string name="wireless_mode_native">नेटिव</string>
     <string name="wireless_mode_server">हेडयूनिट सर्वर</string>
@@ -1140,13 +1200,15 @@
     <string name="zbt_probe_title">हेड यूनिट के ब्लूटूथ मॉड्यूल की जाँच करें</string>
     <string name="zbt_probe_idle">चलाने के लिए टैप करें</string>
     <string name="zbt_probe_running">चल रहा है…</string>
-    <string name="zbt_probe_message">इस यूनिट की अलग ब्लूटूथ चिप से पूछता है कि क्या वह Android Auto कनेक्शन चला सकती है। यह करीब आठ सेकंड में जाँचता है कि चिप जवाब देती भी है या नहीं, और जवाब देने पर ही करीब डेढ़ मिनट तक निगरानी करता है। इस सेटिंग के नीचे की लाइन में दिखता है कि क्या हो रहा है। यूनिट में और कुछ नहीं बदला जाता।\n\nचिप एक बार में एक ही प्रोग्राम से बात करती है, इसलिए अगर उससे कोई कनेक्शन पहले से चल रहा है तो जाँच करने के बजाय यही बताया जाता है। अकेले जाँचने के लिए पहले ऊपर की सेटिंग बंद करें।\n\n\"जगाएं और देखें\" चिप से Android Auto के लिए आपके फ़ोन से दोबारा जुड़ने को भी कहता है। सिर्फ़ यही हिस्सा कुछ बदलता है, और यूनिट रीस्टार्ट करने पर वह पहले जैसा हो जाता है। कृपया बाद में लॉग एक्सपोर्ट करके भेजें।</string>
+    <string name="zbt_probe_message">दोनों विकल्प निगरानी से पहले Bluetooth मॉड्यूल को आरंभ करते हैं। इससे उसकी Bluetooth स्थिति प्रभावित हो सकती है। जगाएँ और देखें विकल्प फ़ोन से कनेक्शन का अनुरोध भी करता है।\n\nजब OHU मॉड्यूल का उपयोग या जाँच करता है, तब परीक्षण उसे प्राथमिकता देता है। परीक्षण के बाद लॉग निर्यात करें।</string>
     <string name="zbt_probe_watch_only">केवल देखें</string>
     <string name="zbt_probe_wake_and_watch">जगाएं और देखें</string>
     <string name="external_bt_blink_transport">FYT के बाहरी ब्लूटूथ मॉड्यूल से कनेक्ट करें</string>
     <string name="external_bt_module_controls_hint">फ़ोन पेयरिंग, कनेक्शन की प्राथमिकता और ड्राइवर का चुनाव बाहरी ब्लूटूथ मॉड्यूल संभालता है।</string>
     <string name="external_bt_module_last_phone">मॉड्यूल से आखिरी बार जुड़ा फ़ोन</string>
     <string name="external_bt_blink_transport_description">प्रयोगात्मक। उन FYT यूनिट के लिए जिनमें फ़ोन कॉल के लिए अलग ब्लूटूथ मॉड्यूल से पेयर होता है, जैसे DUDUOS पर \"DUDUAUTO\", जो अब तक जाँचा गया एकमात्र ROM है। वायरलेस Android Auto हैंडशेक यह मॉड्यूल ले जाता है, इस यूनिट का ब्लूटूथ नहीं, और इसका जवाब आम तौर पर स्टॉक Car Link ऐप देता है। इसे चालू करने पर जवाब यही ऐप देता है, इसलिए कॉल मॉड्यूल और कार के स्पीकर पर ही रहती हैं।\n\nपहले स्टॉक Car Link ऐप बंद करें (pm disable-user com.syu.carlink), वरना दोनों ऐप एक ही चैनल पढ़ेंगे। जहाँ यूनिट इजाज़त दे, चैनल बिना रूट के खुलता है, नहीं तो रूट से। नेटिव चुनें, फ़ोन को सिर्फ़ मॉड्यूल से पेयर करें, और कनेक्ट न हो तो लॉग एक्सपोर्ट करें।</string>
+    <string name="external_bt_zj_socket_transport">ZJ Bluetooth सॉकेट से कनेक्ट करें</string>
+    <string name="external_bt_zj_socket_transport_description">उन यूनिट के लिए, जिनमें ZJ Bluetooth मॉड्यूल वायरलेस Android Auto हैंडशेक को लोकल सॉकेट (/dev/socket/zj_bt_socket) से भेजता है। जब यह सॉकेट कनेक्शन स्वीकार करता है, तो ऐप इसे अपने आप इस्तेमाल करता है। इसे केवल तभी चालू करें, जब आपकी यूनिट में यह सॉकेट हो और ऐप उसे न पहचान पाए।</string>
     <string name="external_bt_blink_refused_stock_enabled">बाहरी ब्लूटूथ मॉड्यूल: स्टॉक Car Link ऐप अभी चालू है। उसे बंद करें (pm disable-user com.syu.carlink) या यह ट्रांसपोर्ट बंद करें।</string>
     <string name="external_bt_blink_refused_stock_running">बाहरी ब्लूटूथ मॉड्यूल: स्टॉक Car Link ऐप बंद है, पर अब भी चल रहा है। यूनिट रीस्टार्ट करें।</string>
     <string name="external_bt_blink_refused_root">बाहरी ब्लूटूथ मॉड्यूल: मॉड्यूल का चैनल खोलने के लिए इस यूनिट पर रूट चाहिए, और रूट एक्सेस नहीं मिला या उपलब्ध नहीं है।</string>
@@ -1325,6 +1387,57 @@
     <string name="debug_video_fault_budget">फ़ॉल्ट बजट</string>
     <string name="debug_force_memory_profile">मेमोरी प्रोफ़ाइल बाध्य करें</string>
 
+    <string name="onb_audio_play_test">परीक्षण ध्वनि चलाएँ</string>
+    <string name="onb_audio_play_test_sub">यह Android Auto के संगीत की तरह कुछ सेकंड तक बजती है।</string>
+    <string name="onb_audio_question">आवाज़ कैसी रही?</string>
+    <string name="onb_audio_play_again">फिर से चलाएँ</string>
+    <string name="onb_audio_answer_ok">आवाज़ ठीक थी</string>
+    <string name="onb_audio_answer_silent">मैंने कुछ नहीं सुना</string>
+    <string name="onb_audio_answer_crackle">आवाज़ चटकी या बीच में कट गई</string>
+    <string name="onb_audio_answer_ok_short">आवाज़ ठीक थी</string>
+    <string name="onb_audio_answer_silent_short">आवाज़ नहीं</string>
+    <string name="onb_audio_answer_crackle_short">चटकती है</string>
+    <string name="onb_audio_silent_title">कोई और ध्वनि चैनल आज़माएँ</string>
+    <string name="onb_audio_silent_help">कुछ रेडियो केवल कुछ आउटपुट को चालू करते हैं। हर एक को सुनने के लिए टैप करें, फिर जो पहला बजे उसे चुनें।</string>
+    <string name="onb_audio_silent_play">इस चैनल पर परीक्षण ध्वनि चलाएँ</string>
+    <string name="onb_audio_silent_use">चुनें</string>
+    <string name="onb_audio_silent_recommended">अनुशंसित</string>
+    <string name="onb_audio_crackle_title">मानक ध्वनि पर बदल दिया गया</string>
+    <string name="onb_audio_crackle_title_already_standard">ध्वनि पहले से मानक पर है</string>
+    <string name="onb_audio_crackle_help">कुछ रेडियो पर तेज़ मोड (AAudio) में आवाज़ चटकती है। हमने इसे बंद कर दिया है। अब फिर से चलाकर देखें।</string>
+    <string name="onb_audio_crackle_help_already_standard">तेज़ मोड पहले से बंद है। फिर से चलाएँ; अगर अब भी चटकता है, तो रेडियो का वॉल्यूम कम करें या कोई दूसरा चैनल आज़माएँ।</string>
+    <string name="onb_audio_crackle_replay">फिर से चलाएँ</string>
+    <string name="onb_audio_done_title">और यूनिट के रेडियो का क्या?</string>
+    <string name="onb_audio_done_context">अगर यूनिट का FM रेडियो या संगीत चल रहा हो और Android Auto बजने लगे, जैसे नेविगेशन बोलते समय:</string>
+    <string name="onb_audio_done_context_short">अगर FM रेडियो चल रहा हो और Android Auto बजने लगे:</string>
+    <string name="onb_audio_focus_always">यह हमेशा रुक जाता है</string>
+    <string name="onb_audio_focus_always_short">रुक जाता है</string>
+    <string name="onb_audio_focus_always_hint">Android Auto के बजने के दौरान रेडियो रुक जाता है और उसके खत्म होने पर फिर चालू हो जाता है।</string>
+    <string name="onb_audio_focus_always_hint_short">Android Auto खत्म होने पर लौट आता है।</string>
+    <string name="onb_audio_focus_never">यह चलता रहता है</string>
+    <string name="onb_audio_focus_never_hint">आप दोनों को एक साथ सुनते हैं।</string>
+    <string name="onb_audio_focus_never_hint_short">दोनों सुनाई देते हैं।</string>
+    <string name="onb_audio_focus_auto">ऐप को तय करने दें</string>
+    <string name="onb_audio_focus_auto_hint">यह रेडियो रोक देता है, जब तक इससे ब्लूटूथ पर आपके फ़ोन का संगीत भी न रुक जाए।</string>
+    <string name="onb_audio_focus_auto_hint_short">अनुशंसित। जब तक फ़ोन का संगीत न रुके।</string>
+    <string name="onb_audio_focus_recommended">अनुशंसित</string>
+    <string name="onb_audio_chip_ok">आवाज़ काम करती है</string>
+    <string name="onb_audio_chip_through">आवाज़ %1$s से आ रही है</string>
+    <string name="onb_audio_chip_standard">मानक ध्वनि, बिना चटकन</string>
+    <string name="onb_audio_more_options">ध्वनि के और विकल्प</string>
+    <string name="onb_audio_more_options_short">और विकल्प</string>
+    <string name="onb_audio_advanced_title">ध्वनि के और विकल्प</string>
+    <string name="onb_audio_advanced_back">ध्वनि परीक्षण पर वापस जाएँ</string>
+    <string name="onb_audio_advanced_help">ये विकल्प तभी चाहिए जब कुछ ठीक न लगे। ध्वनि परीक्षण इन्हें पहले ही आपके लिए सेट कर देता है।</string>
+    <string name="onb_audio_advanced_test_ok">आवाज़ काम कर रही है।</string>
+    <string name="onb_audio_separate_title">हर तरह की ध्वनि के लिए अलग चैनल</string>
+    <string name="onb_audio_separate_help">उपयोगी है, अगर संगीत सुनाई देता है पर नेविगेशन या सूचनाएँ नहीं।</string>
+    <string name="onb_audio_channels_help">हर चैनल किस सिस्टम स्ट्रीम पर चले, यह चुनें। उसे सुनने के लिए स्पीकर पर टैप करें।</string>
+    <string name="onb_audio_aaudio_title">तेज़ आउटपुट (प्रयोगात्मक)</string>
+    <string name="onb_audio_static_focus_title">आवाज़ को बनाए रखें</string>
+    <string name="onb_audio_static_focus_help">अगर कार में Android Auto की आवाज़ बंद हो जाए तो इसे चालू करें। नेविगेशन बोलते समय यह संगीत भी धीमा कर देता है।</string>
+    <string name="onb_audio_testing">परीक्षण ध्वनि बजाई जा रही है…</string>
+    <string name="onb_audio_test_failed">परीक्षण ध्वनि नहीं चल सकी: %1$s</string>
     <!-- Home screen -->
     <string name="home_kicker_active">Android Auto</string>
     <string name="home_kicker_last_connection">आपका पिछला कनेक्शन</string>
@@ -1356,8 +1469,13 @@
     <string name="home_favorites_full">चारों पसंदीदा भरे हुए हैं। बदलने के लिए होम स्क्रीन पर किसी एक को दबाकर रखें।</string>
     <string name="home_choose_favorite_app">ऐप या शॉर्टकट चुनें</string>
     <string name="home_shortcut_badge">शॉर्टकट</string>
-    <string name="home_show_favorite_apps">होम स्क्रीन पर ऐप्स और विजेट</string>
-    <string name="home_show_favorite_apps_description">जब Open Headunit आपका लॉन्चर हो, तब मुख्य बटन के नीचे आपके पसंदीदा ऐप्स और विजेट</string>
+    <string name="app_drawer_tab_shortcuts">शॉर्टकट</string>
+    <string name="home_show_favorite_apps">होम स्क्रीन पर पसंदीदा ऐप्स</string>
+    <string name="home_show_favorite_apps_description">जब Open Headunit आपका लॉन्चर हो, तब मुख्य बटन के नीचे आपके पसंदीदा ऐप्स</string>
+    <string name="home_show_widgets">होम स्क्रीन पर विजेट</string>
+    <string name="home_show_widgets_description">जब Open Headunit आपका लॉन्चर हो, तब आपके विजेट, उनके पेज और «विजेट जोड़ें» टाइल</string>
+    <string name="home_surface_opacity">पैनल की अपारदर्शिता</string>
+    <string name="home_surface_opacity_description">इसे घटाएँ, ताकि आपकी बैकग्राउंड छवि होम स्क्रीन के पैनल और बटन के पीछे से दिखे।</string>
     <string name="home_show_clock">होम स्क्रीन पर तारीख़ और समय</string>
     <string name="home_show_clock_description">मुख्य बटन के ऊपर समय और आज की तारीख़</string>
     <string name="home_show_speed">होम स्क्रीन पर GPS गति</string>
@@ -1393,4 +1511,16 @@
     <string name="audio_settings_reconnect">ऑडियो सेटिंग्स सेव हो गईं। इन्हें लागू करने के लिए Android Auto को दोबारा कनेक्ट करें।</string>
     <string name="native_aa_candidate_android_radio_description">हेड यूनिट का Bluetooth मॉड्यूल अपने आप चुनने के बजाय Android Bluetooth इस्तेमाल करें। अपने आप चुनने के लिए इसे बंद रखें। अगर मॉड्यूल से कनेक्शन का कोई विकल्प चालू है, तो पहले उसे बंद करें।</string>
     <string name="external_bt_candidate_transport_description">अपने आप चुनने के बजाय हेड यूनिट के Bluetooth मॉड्यूल से कनेक्शन अनिवार्य करें। इसके लिए संगत मॉड्यूल सेवा ज़रूरी है। सेवा जवाब न दे तो Android Bluetooth इस्तेमाल करने देने के लिए इसे बंद रखें; चालू करने पर यह विकल्प उपलब्ध नहीं होगा।</string>
+    <string name="audio_matching_mode">संगीत समय सुधार</string>
+    <string name="audio_matching_ohu">OHU</string>
+    <string name="audio_matching_wsola">WSOLA</string>
+    <string name="audio_matching_phase_vocoder">Phase Vocoder</string>
+    <string name="audio_matching_phase_vocoder_short">Phase Vocoder Short</string>
+    <string name="audio_matching_phase_gradient">Phase Gradient</string>
+    <string name="audio_matching_ohu_hint">डिफ़ॉल्ट</string>
+    <string name="audio_matching_wsola_hint">हल्का</string>
+    <string name="audio_matching_phase_vocoder_hint">संतुलित</string>
+    <string name="audio_matching_phase_vocoder_short_hint">कम विलंब</string>
+    <string name="audio_matching_phase_gradient_hint">धीमा प्लेबैक</string>
+    <string name="audio_matching_description">OHU डिफ़ॉल्ट बना रहता है। WSOLA ओवरलैप होती तरंगों को संरेखित करता है; Phase Vocoder स्पेक्ट्रम के फेज़ समायोजित करता है। Short छोटी विश्लेषण विंडो का उपयोग करता है। Phase Gradient फेज़ ग्रेडिएंट का समाकलन करके फेज़ पुनर्निर्मित करता है। ये स्वतंत्र कार्यान्वयन प्रोसेसिंग में देरी जोड़ते हैं; इनके नाम ध्वनि गुणवत्ता की रैंकिंग नहीं हैं।\n\nनेटिव तरीके: PCM संगीत। नेविगेशन, बोलकर दिए गए जवाब, सिस्टम ध्वनियाँ और AAC OHU का उपयोग करते हैं।\nलागू करने के लिए फिर से कनेक्ट करें। हटाए गए इंजन की सेटिंग OHU पर रीसेट होती है।</string>
 </resources>

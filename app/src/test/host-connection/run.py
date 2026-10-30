@@ -57,6 +57,10 @@ class CommManager {
  private var connectionAttempt:Any?=null
  private var usbRecoveryOwner:Any=Any()
  fun recoveryOwner()=usbRecoveryOwner
+ // Projection health storage is not part of the lifecycle under test.
+ private fun recordProjectionHealth(){}
+ fun usbRecheckOwner()=usbRecoveryOwner
+ fun ownsUsbRecheck(owner:Any)=usbRecoveryOwner===owner
  private var settingsUsbRestartInFlight:ConnectionState.Disconnected?=null
  private var usbSaveOwner:ConnectionState.Disconnected?=null
  private var physicalConnectionReached=true
@@ -77,7 +81,8 @@ class CommManager {
  private var onAudioFocusStateChanged:((Boolean)->Unit)?=null
  private var onUpdateUiConfigReplyReceived:(()->Unit)?=null
  private var onSessionFailure:((String)->Unit)?={failures.add(it)}
- private var onUsbHandshakeEnded:((AapTransport.HandshakeFailure)->Unit)?=null
+ data class UsbHandshakeOutcome(val failure:AapTransport.HandshakeFailure,val device:UsbDevice,val recoveryOwner:Any,val identity:UsbRecoveryDevice?=null)
+ private var onUsbHandshakeEnded:((UsbHandshakeOutcome)->Unit)?=null
  val failures=mutableListOf<String>()
  private var sessionReachedHandshake=false
  private var silentPeerFailures=0
@@ -109,9 +114,10 @@ class CommManager {
 # Keep Save permission and deadline semantics from the same production state as the methods.
 old_state=manager_head[manager_head.index(' class Disconnected('):manager_head.index(' object Connecting:')]
 manager_head=manager_head.replace(old_state, extract(comm, 'class Disconnected(')+'\n')
-for name in ['SettingsRestartRecovery.kt', 'SameEndpointConnectPolicy.kt']:
+for name in ['SettingsRestartRecovery.kt', 'SameEndpointConnectPolicy.kt', 'ConnectionAdmission.kt', 'UsbRecoveryAdmission.kt']:
     source=(base/'connection'/name).read_text().replace('package com.andrerinas.openheadunit.connection', 'package lifecycle')
     (OUT/name).write_text(source)
+(OUT/'UsbRecoveryDevice.kt').write_text((base/'connection/usb/UsbRecoveryDevice.kt').read_text().replace('package com.andrerinas.openheadunit.connection.usb', 'package lifecycle'))
 (OUT/'AaPresentationSession.kt').write_text((base/'aap/AaPresentationSession.kt').read_text().replace('package com.andrerinas.openheadunit.aap', 'package lifecycle'))
 (OUT/'FinalMessageDelivery.kt').write_text((base/'aap/FinalMessageDelivery.kt').read_text().replace('package com.andrerinas.openheadunit.aap', 'package lifecycle'))
 # These endpoint predicates must be the real ones when testing the terminal route snapshot.
@@ -120,7 +126,7 @@ for declaration in ['val isWirelessSession:', 'val isLoopbackSession:']:
     manager_head += comm[start:comm.index('\n\n', start)] + '\n'
 manager=manager_head+'\n'.join(extract(comm,n) for n in [
  'suspend fun startHandshake()', 'private inline fun withLiveTransport(', 'suspend fun startReading()',
- 'private fun reachedSsl()', 'private fun transportedQuited(', 'fun applyAudioSettings()', 'fun disconnect(', 'fun cancelPendingSettingsRestart()', 'private fun doDisconnect(',
+ 'private fun reachedSsl()', 'private fun transportedQuited(', 'fun applyAudioSettings()', 'fun disconnect(', 'fun cancelPendingSettingsRestart()', 'internal fun rearmSnapshot()', 'private fun doDisconnect(',
  'private suspend fun connectIp(', 'private suspend fun connectUsb(', 'fun disconnectForLinkLoss(', 'fun destroy()',
  'fun setProjectionVideoFocusSuppressed('
 ])+'\n}\n'
@@ -133,6 +139,7 @@ class AapTransport(
 ){
  private val lifecycleLock=Any()
  private val presentationSession=AaPresentationSession()
+ private var pendingVideoFocus:AapMessage?=null
  @Volatile private var closing=false
  @Volatile private var projectionVideoFocusSuppressed=false
  fun isProjectionVideoFocusSuppressed()=projectionVideoFocusSuppressed
@@ -229,8 +236,9 @@ class AapAudio(decoder:AudioDecoder,private val settings:Settings){
  fun postProtocolFocusChange(stream:Int,request:Int,callback:AudioManager.OnAudioFocusChangeListener){}
 }
 class AudioConfig{val enabled=true;val staticFocus=false;val focusMode=0}
-class VideoDecoder{var framesRenderedThisSession=0L;var onDecoderError:((String)->Unit)?=null;var onKeyframeStarved:(()->Unit)?=null;var onFrameDropped:(()->Unit)?=null;var onKeyframeObserved:(()->Unit)?=null;fun stop(s:String){}}
+class VideoDecoder{var framesRenderedThisSession=0L;fun beginSession(){framesRenderedThisSession=0L};var onDecoderError:((String)->Unit)?=null;var onKeyframeStarved:(()->Unit)?=null;var onFrameDropped:(()->Unit)?=null;var onKeyframeObserved:(()->Unit)?=null;fun stop(s:String){}}
 class AapVideo{fun release(){}}
+object ProjectionHealthRecorder{fun reset(){}}
 open class AapRead{@Volatile protected var isStopped=false;fun stop(){isStopped=true;retirePresentation()};var onRetirePresentation:(()->Unit)?=null;fun retirePresentation(){onRetirePresentation?.invoke()};companion object{var creations=0};object Factory{
  fun create(connection:ProjectionConnection,transport:AapTransport,mic:Any,audio:AapAudio,video:AapVideo,
  settings:Settings,context:Context,metadata:((Any,Any)->Unit)?,playback:((Any,Any)->Unit)?,closed:((Any)->Unit)?,session:AaPresentationSession):AapRead{creations++;return AapRead()}
@@ -608,11 +616,14 @@ fun destroyDuringCandidateConstruction()=runBlocking {
 }
 '''
 extra += r'''
-object UsbDeviceCompat{fun getUniqueName(d:UsbDevice)="usb-fixture";fun usbManager(c:Context)=c.getSystemService(Context.USB_SERVICE) as UsbManager}
+object UsbDeviceCompat{fun isInAccessoryMode(d:UsbDevice)=true;fun isConnectable(c:Context,d:UsbDevice)=true;fun getUniqueName(d:UsbDevice)="usb-fixture";fun usbManager(c:Context)=c.getSystemService(Context.USB_SERVICE) as UsbManager}
+// Recovery claim admission is covered by UsbRecoveryAdmissionTest; these fixtures use ordinary connects.
+object ConnectionArbiter{class Claim;fun runIfHeld(claim:Claim, action:()->Unit):Boolean{action();return true}}
 object UsbBridge{ @Volatile var afterConnect:(()->Unit)?=null;var forcedOpen:(()->Boolean)?=null }
 // The production USB check has to match the fixture's USB double.
 typealias AbstractUsbProjectionConnection=StandardUsbProjectionConnection
-open class StandardUsbProjectionConnection(m:UsbManager,d:UsbDevice):ProjectionConnection(){
+open class StandardUsbProjectionConnection(m:UsbManager,private val d:UsbDevice):ProjectionConnection(){
+ val accessoryDevice get()=d
  private val actual=com.andrerinas.openheadunit.connection.projection.StandardUsbProjectionConnection(m,d)
  override fun connect():Boolean {UsbBridge.forcedOpen?.let{return it()};val r=runBlocking{actual.connect()};UsbBridge.afterConnect?.invoke();return r}
  override fun disconnect(){super.disconnect();actual.disconnect()}
@@ -663,10 +674,18 @@ class SettingsActionFixture(val commManager:CommManager) {
  private val intent:android.content.Intent?=null
  private val EXTRA_USB_ATTEMPT="usb";private val EXTRA_SETTINGS_REARM="settings";private val START_STICKY=1
  var userExitedAA=false
+ private fun parkRetainedHct(){}
+ private val isDestroying=false
  private fun stopWirelessForCommand(settingsRearm:Boolean){commManager.cancelPendingSettingsRestart()}
  private var wirelessRearmPendingForSettings=false
  private var usbCheckPendingForSettings=false;private var bluetoothLaunchPendingForSettings=false
- private class Wifi {val active:Any?=null;fun stop(){};fun stopForUser(){}}
+ private class Wifi {
+  private val ticket=Any()
+  fun holdForUser(){}
+  fun cleanupTicket()=ticket
+  fun isCleanupCurrent(value:Any)=value===ticket
+  val active:Any?=null;fun stop(){};fun stopForUser(){}
+ }
  private class WifiLauncherNative {val handshakeManager=Handshake()}
  private class Handshake {fun noteSessionEnded(wake:Boolean){}}
  private class Usb {fun isSwitchingToProjection()=false;fun stopForUser(){}}
@@ -717,6 +736,34 @@ fun terminalRouteSnapshots()=runBlocking {
 }
 """
 extra += r"""
+// Self Mode can be admitted while another attempt is Connecting. The launcher arm records
+// that attempt through the real snapshot, and the real failed open must publish its end with
+// the same identity; a later attempt's end must not match it.
+fun rearmSnapshotIdentifiesConnectingAttempt()=runBlocking {
+ for(outcome in listOf("false","throw")) {
+  val c=CommManager();c.connectNext()
+  c.disconnect(honorKillOnDisconnect=false);c.cleanups();c.awaitCleanup()
+  var armed:Pair<ConnectionState.Disconnected?,Any?>?=null
+  SocketProjectionConnection.connectionHook={
+   armed=c.rearmSnapshot()
+   if(outcome=="throw")throw IllegalStateException("open failed") else false
+  }
+  try { c.connectNext() } finally { SocketProjectionConnection.connectionHook=null }
+  val (terminalAtArm,attempt)=checkNotNull(armed)
+  check(terminalAtArm==null && attempt!=null){"arm during Connecting recorded no attempt"}
+  val ended=c.state as ConnectionState.Disconnected
+  check(ended.endedAttempt===attempt && !ended.hadPhysicalConnection){"failed open lost its attempt: $outcome"}
+  check(c.rearmSnapshot().let{it.first===ended && it.second==null})
+  c.cleanups();c.awaitCleanup()
+  c.connectNext()
+  val live=c.rearmSnapshot().second
+  c.disconnect(honorKillOnDisconnect=false)
+  val next=c.state as ConnectionState.Disconnected
+  check(live!=null && live!==attempt && next.endedAttempt===live && next.hadPhysicalConnection)
+  c.cleanups();c.close()
+ }
+ println("PASS real Connecting attempt identity reaches its failed terminal and differs from the next attempt")
+}
 fun usbSaveOpenFailures()=runBlocking {
  val permissionCase=CommManager()
  permissionCase.disconnect(sendByeBye=false,isUserExit=false,honorKillOnDisconnect=false,reason=DisconnectReason.SETTINGS_RESTART)
@@ -765,7 +812,7 @@ fun failedAttemptDoesNotInheritPhysicalSuccess()=runBlocking {
  println("PASS new failed attempts do not inherit physical success from the previous connection")
 }
 """
-extra=extra.replace('fun main(){', 'fun main(){\n usbSaveOpenFailures();failedAttemptDoesNotInheritPhysicalSuccess();terminalRouteSnapshots();settingsActionCancellation()')
+extra=extra.replace('fun main(){', 'fun main(){\n usbSaveOpenFailures();failedAttemptDoesNotInheritPhysicalSuccess();rearmSnapshotIdentifiesConnectingAttempt();terminalRouteSnapshots();settingsActionCancellation()')
 (OUT/'Probe.kt').write_text(manager+transport_fixture+support+extra)
 (OUT/'Os.kt').write_text(r'''package android.os
 import java.util.concurrent.*
@@ -830,10 +877,10 @@ for name in ['ProjectionConnection.kt','AbstractUsbProjectionConnection.kt','Sta
  shutil.copy2(p,OUT/name);meta[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
 (OUT/'Usb.kt').write_text('''package android.hardware.usb
 import java.util.concurrent.atomic.AtomicInteger
-class UsbDevice{val interfaceCount=1;fun getInterface(i:Int)=UsbInterface()}
+class UsbDevice{val manufacturerName:String?="fixture";val productName:String?="fixture";val serialNumber:String?="fixture";val deviceName="fixture";val vendorId=0x18d1;val productId=0x2d00;val interfaceCount=1;fun getInterface(i:Int)=UsbInterface()}
 class UsbInterface
 class UsbEndpoint{val maxPacketSize=64}
-class UsbManager{var openHook:((UsbDevice)->UsbDeviceConnection?)?=null;var permitted=true;fun hasPermission(d:UsbDevice)=permitted;fun openDevice(d:UsbDevice)=openHook?.invoke(d)?:UsbDeviceConnection()}
+class UsbManager{val deviceList=hashMapOf<String,UsbDevice>();var openHook:((UsbDevice)->UsbDeviceConnection?)?=null;var permitted=true;fun hasPermission(d:UsbDevice)=permitted;fun openDevice(d:UsbDevice)=openHook?.invoke(d)?:UsbDeviceConnection()}
 class UsbDeviceConnection{
  val closes=AtomicInteger();val releases=AtomicInteger()
  fun close(){closes.incrementAndGet()}
@@ -897,3 +944,18 @@ subprocess.run(["python3", str(Path(__file__).with_name("audio-integration.py"))
 
 # Exercise actual Self launch jobs and the service cancel action on a queued Main dispatcher.
 subprocess.run(["python3", str(Path(__file__).with_name("self-launch.py"))], check=True)
+
+# Full service disconnect callback: immediate policy and deferred resource ownership.
+subprocess.run(["python3", str(Path(__file__).with_name("wireless-cleanup.py"))], check=True)
+
+# Service-owned HCT transport lifetime.
+subprocess.run(["python3", str(Path(__file__).with_name("hct-owner.py"))], check=True)
+
+# VPN startService delivery can outlive a synchronous stop on the bound instance.
+subprocess.run(["python3", str(Path(__file__).with_name("vpn-start.py"))], check=True)
+
+# Platform-version configuration: session exclusion must not silently become an all-app VPN.
+subprocess.run(["python3", str(Path(__file__).with_name("vpn-config.py"))], check=True)
+
+# Exercise the service module-retry branch with production wake and completion methods.
+subprocess.run(["python3", str(Path(__file__).with_name("module-retry.py"))], check=True)

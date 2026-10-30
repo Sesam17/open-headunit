@@ -7,6 +7,12 @@
     <string name="settings_tab_basic">Dasar</string>
     <string name="settings_tab_advanced">Lanjutan</string>
     <string name="settings_search_hint">Telusuri setelan</string>
+    <string name="settings_scope_wifi_hidden">Menampilkan pengaturan USB. Pengaturan WiFi disembunyikan.</string>
+    <string name="settings_scope_usb_hidden">Menampilkan pengaturan WiFi. Pengaturan USB disembunyikan.</string>
+    <string name="settings_scope_usb_wifi_hidden">Menampilkan pengaturan Mode Mandiri. Pengaturan USB dan WiFi disembunyikan.</string>
+    <string name="settings_scope_change">Ubah</string>
+    <string name="settings_search_clear">Hapus pencarian</string>
+    <string name="settings_search_no_results">Tidak ada pengaturan yang cocok dengan \"%1$s\".</string>
 
     <!-- Connection mode selector -->
     <string name="connection_mode">Mode koneksi</string>
@@ -28,6 +34,32 @@
     <string name="onb_connection_cable_detail">Ponsel terhubung langsung ke head unit dengan kabel USB. Opsi nirkabel disembunyikan.</string>
     <string name="onb_connection_adapter_detail">Dongle USB menjembatani kabel ke sambungan nirkabel. Opsi nirkabel ditampilkan.</string>
     <string name="onb_connection_wifi_detail">Ponsel terhubung melalui Wi-Fi.</string>
+    <string name="onb_video_title">Tes video</string>
+    <string name="onb_video_help">Aplikasi memutar beberapa klip pendek melalui dekoder dan perender yang akan digunakannya. Ini menunjukkan apa yang benar-benar diputar unit ini, bukan sekadar mempercayai klaimnya.</string>
+    <string name="onb_video_preparing">Menyiapkan tes...</string>
+    <string name="onb_video_running">Menguji %1$s di %2$s...</string>
+    <string name="onb_video_idle">Tes belum dijalankan.</string>
+    <string name="onb_video_note_h265_failed">H.265 tidak berhasil, jadi tes menyarankan H.264.</string>
+    <string name="onb_video_note_resolution_capped">Panel meminta lebih dari yang dapat didekode unit ini, jadi tes membatasi resolusi ke %1$s.</string>
+    <string name="onb_video_note_renderer_changed">%1$s tidak menggambar gambar, jadi tes menyarankan %2$s.</string>
+    <string name="onb_video_note_high_res_unverified">H.265 berhasil pada 1080p. Resolusi panel yang lebih tinggi belum diuji.</string>
+    <string name="onb_video_note_unverified">Dekoder menghasilkan frame, tetapi versi Android ini tidak dapat membaca gambar kembali, jadi tes tidak dapat memverifikasinya.</string>
+    <string name="onb_video_note_not_tested">Tidak ada yang lulus, jadi pengaturan saat ini tidak berubah.</string>
+    <string name="onb_video_summary_pass">Unit ini memutar %1$s pada %2$s</string>
+    <string name="onb_video_summary_none">Tidak ada klip yang terputar dengan baik</string>
+    <string name="onb_video_frames">%1$d dari %2$d frame</string>
+    <string name="onb_video_row_ok">Terputar dengan baik</string>
+    <string name="onb_video_row_no_picture">Tidak ada gambar</string>
+    <string name="onb_video_row_decoder">Dekoder gagal</string>
+    <string name="onb_video_row_few_frames">Ada frame yang hilang</string>
+    <string name="onb_video_row_bad_picture">Gambar keluar salah</string>
+    <string name="onb_video_row_unverified">Terputar, tidak dapat diperiksa</string>
+    <string name="onb_video_summary_view_mode">Mode tampilan: %1$s</string>
+    <string name="onb_video_apply">Terapkan pengaturan yang disarankan</string>
+    <string name="onb_video_run">Jalankan tes</string>
+    <string name="onb_video_again">Jalankan tes lagi</string>
+    <string name="onb_video_skip">Lewati tes</string>
+    <string name="onb_video_error">Tes tidak dapat dijalankan: %1$s</string>
     <string name="onb_display_title">Layar</string>
     <!-- %1$d width, %2$d height, %3$d dpi, %4$s codec -->
     <string name="onb_display_detected">Panel terdeteksi: %1$d x %2$d px, %3$d dpi, perangkat keras %4$s.</string>
@@ -188,6 +220,13 @@
     <string name="remove_from_blacklist">Hapus dari Daftar Blokir</string>
     <string name="usb_device_action_title">Tindakan Perangkat USB</string>
     <string name="exit">Keluar</string>
+    <string name="projection_health_apply">Terapkan</string>
+    <string name="projection_health_suggest_h264">Koneksi terakhir Anda bermasalah saat mendekode H.265. Ganti video ke H.264?</string>
+    <string name="projection_health_suggest_surface">Gambar macet atau menjadi hitam pada koneksi terakhir Anda. Ganti mode tampilan ke SurfaceView?</string>
+    <string name="projection_health_suggest_fps30">Gambar tersendat pada koneksi terakhir Anda. Batasi ke 30 fps?</string>
+    <string name="projection_health_suggest_720p">Gambar tersendat pada koneksi terakhir Anda. Turunkan resolusi ke 720p?</string>
+    <string name="projection_health_later">Nanti saja</string>
+    <string name="projection_health_applied">Diterapkan. Proyeksi berikutnya akan memakainya.</string>
     <string name="apps">Aplikasi</string>
     <string name="no_apps_found">Tidak ada aplikasi yang ditemukan</string>
     <string name="video">Android Auto</string>
@@ -212,6 +251,16 @@
     <string name="current_light_reading">Cahaya saat ini: %d Lux</string>
     <string name="current_brightness_reading">Kecerahan saat ini: %d / 255</string>
     <string name="enable_fine_lux_control">Kontrol presisi (0–100 Lux)</string>
+    <string name="car_signal_calibration_info_format">car_mode saat ini: %1$d. Pemetaan: %2$s.</string>
+    <string name="car_signal_mapping_default">0 = Siang, non-zero = Malam</string>
+    <string name="car_signal_mapping_inverted">0 = Malam, non-zero = Siang</string>
+    <string name="car_signal_unavailable">Tidak dapat membaca car_mode di head unit ini saat ini.</string>
+    <string name="car_signal_headlights_question">Apakah lampu depan sedang menyala?</string>
+    <string name="car_signal_calibration_title">Kalibrasi ILL+</string>
+    <string name="car_signal_recalibrate">Kalibrasi ulang</string>
+    <string name="car_signal_headlights_on">Menyala</string>
+    <string name="car_signal_headlights_off">Mati</string>
+    <string name="car_signal_calibration_saved">Kalibrasi ILL+ disimpan dan diterapkan</string>
     <string name="night_mode_start">Waktu Mulai Mode Malam</string>
     <string name="night_mode_end">Waktu Selesai Mode Malam</string>
 
@@ -311,6 +360,7 @@
     <string name="orientation_portrait">Potret (90°)</string>
     <string name="orientation_portrait_reverse">Potret Terbalik (270°)</string>
     <string name="enter_dpi_value">Masukkan nilai DPI (0 untuk otomatis)</string>
+    <string name="enter_audio_offset_value">Masukkan nilai (0-250)</string>
     <string name="enter_pixel_aspect_ratio_value">Rasio aspek piksel x10000 (10000 = piksel persegi)</string>
     <string name="custom_margin">Margin Kustom</string>
     <string name="custom_margin_description">Atur margin tampilan kustom (0 untuk otomatis).</string>
@@ -604,8 +654,20 @@
     <string name="audio_stream_vendor_info">Head unit ini memiliki aliran keluaran yang tidak ada di Android standar, tercantum di bawah ini sesuai nama yang diberikan oleh sistemnya sendiri. Sering kali aliran inilah yang sebenarnya tersambung ke amplifier mobil, jadi ujilah dengan tombol speaker jika saluran tidak bersuara.</string>
 
     <!-- Onboarding: audio step -->
-    <string name="onb_audio_title">Audio</string>
-    <string name="onb_audio_help">Pilih aliran sistem tempat setiap saluran Android Auto diputar, lalu ketuk speaker untuk mendengarnya. Jika sebuah saluran tidak bersuara di mobil, memindahkannya ke aliran lain biasanya memperbaiki masalah.</string>
+    <string name="onb_audio_title">Suara</string>
+    <string name="onb_audio_help">Mari periksa apakah suara Android Auto sudah benar di unit ini. Naikkan volume radio sebelum Anda mulai.</string>
+    <string name="onb_audio_output_title">Keluaran</string>
+    <string name="onb_audio_aaudio_help">Memakai AAudio agar suara merespons lebih cepat. Matikan jika berderak.</string>
+    <string name="onb_audio_output_test">Putar nada uji</string>
+    <string name="onb_audio_output_testing">Memutar melalui %1$s...</string>
+    <string name="onb_audio_output_ok">Diputar melalui %1$s.</string>
+    <string name="onb_audio_output_fallback">AAudio tidak terbuka, jadi tes memakai AudioTrack.</string>
+    <string name="onb_audio_output_skipped_aaudio">Diputar melalui AAudio, tetapi suaranya terputus. Jika berderak, matikan AAudio.</string>
+    <string name="onb_audio_output_skipped">Diputar melalui AudioTrack, tetapi suaranya terputus. Putar lagi untuk melihat apakah terjadi setiap kali.</string>
+    <string name="onb_audio_static_focus_short">Aktifkan jika suara Android Auto hilang di mobil. Ini juga mengecilkan musik saat navigasi berbicara.</string>
+    <string name="onb_audio_focus_auto_short">Aplikasi pilih</string>
+    <string name="onb_audio_output_failed">Nada uji tidak dapat diputar: %1$s</string>
+    <string name="onb_audio_focus_title">Fokus audio</string>
     <string name="onb_audio_more_hint">Anda dapat mengubahnya lagi nanti di Pengaturan → Aliran Audio.</string>
     <string name="use_aac_audio">Gunakan Audio AAC</string>
     <string name="use_aac_audio_description">Gunakan kodek AAC untuk audio guna menghemat bandwidth (Eksperimental). Pada sesi nirkabel pada 2,4 GHz, ini aktif otomatis saat \"Turunkan video pada tautan 2,4 GHz\" aktif.</string>
@@ -995,8 +1057,6 @@
     <string name="wait_for_wifi_description">Saat boot, tunggu Wi-Fi terhubung sebelum memulai Wi-Fi Direct. Aktifkan ini jika head unit Anda memerlukan beberapa detik untuk terhubung ke Wi-Fi setelah menyala.</string>
     <string name="wait_for_wifi_timeout">Batas waktu tunggu Wi-Fi</string>
     <string name="wireless_24ghz_warning">Catatan: Android Auto nirkabel pada perangkat 2,4 GHz dapat menyebabkan lag, tersendat, dan koneksi terputus. Jika Anda mengalami masalah, coba melalui USB untuk memastikan apakah penyebabnya keterbatasan jaringan.</string>
-    <string name="fake_speed_title">Nonaktifkan Kunci Video (Kecepatan Palsu)</string>
-    <string name="fake_speed_description">Melaporkan kecepatan rendah yang konstan (0,5 m/s) ke ponsel agar konten video tidak diblokir saat berkendara. Gunakan dengan hati-hati.</string>
     <string name="wireless_mode_helper">Wireless Helper</string>
     <string name="wireless_mode_native">Nirkabel Asli (Native)</string>
     <string name="wireless_mode_server">Server Headunit</string>
@@ -1140,13 +1200,15 @@
     <string name="zbt_probe_title">Uji modul Bluetooth head unit</string>
     <string name="zbt_probe_idle">Ketuk untuk menjalankan</string>
     <string name="zbt_probe_running">Sedang berjalan…</string>
-    <string name="zbt_probe_message">Menanyakan kepada chip Bluetooth terpisah di unit ini apakah chip itu dapat membawa koneksi Android Auto. Dalam sekitar delapan detik, pengujian memeriksa apakah chip merespons. Hanya jika merespons, pengujian mengamati selama sekitar satu setengah menit. Baris di bawah setelan ini menunjukkan apa yang sedang terjadi, dan tidak ada hal lain di unit yang diubah.\n\nChip hanya dapat berbicara dengan satu program pada satu waktu. Jika sebuah koneksi sudah berjalan melaluinya, pengujian menyatakan hal itu dan tidak menguji. Nonaktifkan setelan di atas terlebih dahulu untuk mengujinya secara terpisah.\n\n\"Bangunkan dan amati\" juga meminta chip menghubungkan kembali ke ponsel Anda untuk Android Auto. Hanya bagian itu yang mengubah sesuatu, dan memulai ulang unit akan membatalkannya. Ekspor log setelahnya dan lampirkan.</string>
+    <string name="zbt_probe_message">Kedua opsi menginisialisasi modul Bluetooth sebelum memantaunya. Ini dapat memengaruhi status Bluetooth. Bangunkan dan amati juga meminta koneksi ke ponsel.\n\nPengujian memberi prioritas saat OHU menggunakan atau memeriksa modul. Ekspor log setelah pengujian.</string>
     <string name="zbt_probe_watch_only">Amati saja</string>
     <string name="zbt_probe_wake_and_watch">Bangunkan dan amati</string>
     <string name="external_bt_blink_transport">Hubungkan melalui modul Bluetooth eksternal FYT</string>
     <string name="external_bt_module_controls_hint">Penyandingan ponsel, prioritas koneksi, dan pemilihan driver dikelola oleh modul Bluetooth eksternal.</string>
     <string name="external_bt_module_last_phone">Ponsel terakhir yang terhubung melalui modul</string>
     <string name="external_bt_blink_transport_description">Eksperimental. Untuk unit FYT yang ponselnya disandingkan untuk panggilan dengan modul Bluetooth terpisah, seperti \"DUDUAUTO\" di DUDUOS, satu-satunya ROM yang sudah diuji sejauh ini. Modul ini, bukan Bluetooth unit, yang membawa handshake Android Auto nirkabel, dan aplikasi Car Link bawaan biasanya menjawabnya. Jika opsi ini aktif, aplikasi ini yang menjawabnya, sehingga panggilan tetap di modul dan speaker mobil.\n\nNonaktifkan dulu aplikasi Car Link bawaan (pm disable-user com.syu.carlink), atau kedua aplikasi akan membaca saluran yang sama. Saluran dibuka tanpa root jika unit mengizinkan, dan melalui root jika tidak. Pilih Nirkabel Asli, sandingkan ponsel hanya dengan modul, lalu ekspor log jika tidak terhubung.</string>
+    <string name="external_bt_zj_socket_transport">Hubungkan melalui soket Bluetooth ZJ</string>
+    <string name="external_bt_zj_socket_transport_description">Untuk unit yang modul Bluetooth ZJ-nya membawa handshake Android Auto nirkabel lewat soket lokal (/dev/socket/zj_bt_socket). Aplikasi memakainya sendiri saat soket itu menerima koneksi. Aktifkan hanya jika unit Anda punya soket tersebut dan aplikasi tidak mendeteksinya.</string>
     <string name="external_bt_blink_refused_stock_enabled">Modul Bluetooth eksternal: aplikasi Car Link bawaan masih aktif. Nonaktifkan (pm disable-user com.syu.carlink) atau matikan jalur ini.</string>
     <string name="external_bt_blink_refused_stock_running">Modul Bluetooth eksternal: aplikasi Car Link bawaan sudah dinonaktifkan tetapi masih berjalan. Mulai ulang unit.</string>
     <string name="external_bt_blink_refused_root">Modul Bluetooth eksternal: membuka saluran modul memerlukan root di unit ini, dan akses root ditolak atau tidak tersedia.</string>
@@ -1326,6 +1388,57 @@
     <string name="debug_video_fault_budget">Anggaran kesalahan</string>
     <string name="debug_force_memory_profile">Paksa profil memori</string>
 
+    <string name="onb_audio_play_test">Putar suara uji</string>
+    <string name="onb_audio_play_test_sub">Diputar selama beberapa detik, seperti musik Android Auto.</string>
+    <string name="onb_audio_question">Bagaimana suaranya?</string>
+    <string name="onb_audio_play_again">Putar lagi</string>
+    <string name="onb_audio_answer_ok">Suaranya bagus</string>
+    <string name="onb_audio_answer_silent">Saya tidak mendengar apa-apa</string>
+    <string name="onb_audio_answer_crackle">Berderak atau terputus</string>
+    <string name="onb_audio_answer_ok_short">Suara bagus</string>
+    <string name="onb_audio_answer_silent_short">Tanpa suara</string>
+    <string name="onb_audio_answer_crackle_short">Berderak</string>
+    <string name="onb_audio_silent_title">Coba saluran suara lain</string>
+    <string name="onb_audio_silent_help">Sebagian radio hanya membunyikan saluran tertentu. Ketuk tiap saluran untuk mendengarnya, lalu pilih yang pertama terdengar.</string>
+    <string name="onb_audio_silent_play">Putar nada uji di saluran ini</string>
+    <string name="onb_audio_silent_use">Pilih</string>
+    <string name="onb_audio_silent_recommended">Direkomendasikan</string>
+    <string name="onb_audio_crackle_title">Beralih ke suara standar</string>
+    <string name="onb_audio_crackle_title_already_standard">Sudah memakai suara standar</string>
+    <string name="onb_audio_crackle_help">Mode cepat (AAudio) berderak di sebagian radio. Kami sudah mematikannya. Putar lagi.</string>
+    <string name="onb_audio_crackle_help_already_standard">Mode cepat sudah nonaktif. Putar lagi; jika masih berderak, kecilkan volume radio atau coba saluran lain.</string>
+    <string name="onb_audio_crackle_replay">Mainkan lagi</string>
+    <string name="onb_audio_done_title">Bagaimana dengan radio unit?</string>
+    <string name="onb_audio_done_context">Jika radio FM atau musik dari unit sedang diputar dan Android Auto mulai berbunyi, misalnya saat navigasi berbicara:</string>
+    <string name="onb_audio_done_context_short">Jika radio FM sedang diputar dan Android Auto mulai berbunyi:</string>
+    <string name="onb_audio_focus_always">Selalu dijeda</string>
+    <string name="onb_audio_focus_always_short">Dijeda</string>
+    <string name="onb_audio_focus_always_hint">Radio berhenti saat Android Auto berbunyi dan kembali setelah selesai.</string>
+    <string name="onb_audio_focus_always_hint_short">Kembali saat Android Auto selesai.</string>
+    <string name="onb_audio_focus_never">Tetap diputar</string>
+    <string name="onb_audio_focus_never_hint">Anda mendengar keduanya sekaligus.</string>
+    <string name="onb_audio_focus_never_hint_short">Anda mendengar keduanya.</string>
+    <string name="onb_audio_focus_auto">Biar aplikasi yang memutuskan</string>
+    <string name="onb_audio_focus_auto_hint">Radio dijeda, kecuali itu juga menjeda musik ponsel Anda lewat Bluetooth.</string>
+    <string name="onb_audio_focus_auto_hint_short">Direkomendasikan. Kecuali jika musik ponsel ikut terhenti.</string>
+    <string name="onb_audio_focus_recommended">Direkomendasikan</string>
+    <string name="onb_audio_chip_ok">Suara berfungsi</string>
+    <string name="onb_audio_chip_through">Suara terdengar lewat %1$s</string>
+    <string name="onb_audio_chip_standard">Suara standar, tanpa berderak</string>
+    <string name="onb_audio_more_options">Opsi suara lainnya</string>
+    <string name="onb_audio_more_options_short">Opsi lain</string>
+    <string name="onb_audio_advanced_title">Opsi suara lainnya</string>
+    <string name="onb_audio_advanced_back">Kembali ke tes suara</string>
+    <string name="onb_audio_advanced_help">Opsi ini hanya perlu jika ada yang tidak beres. Tes suara sudah mengaturnya untuk Anda.</string>
+    <string name="onb_audio_advanced_test_ok">Suara berfungsi.</string>
+    <string name="onb_audio_separate_title">Saluran berbeda untuk tiap suara</string>
+    <string name="onb_audio_separate_help">Berguna jika musik terdengar tetapi navigasi atau notifikasi tidak.</string>
+    <string name="onb_audio_channels_help">Pilih aliran sistem yang dipakai tiap saluran. Ketuk speaker untuk mendengarnya.</string>
+    <string name="onb_audio_aaudio_title">Keluaran cepat (eksperimental)</string>
+    <string name="onb_audio_static_focus_title">Pertahankan suara</string>
+    <string name="onb_audio_static_focus_help">Aktifkan ini jika suara Android Auto putus-putus di mobil. Ini juga mengecilkan musik saat navigasi berbicara.</string>
+    <string name="onb_audio_testing">Memutar suara uji…</string>
+    <string name="onb_audio_test_failed">Tidak dapat memutar suara uji: %1$s</string>
     <!-- Home screen -->
     <string name="home_kicker_active">Android Auto</string>
     <string name="home_kicker_last_connection">Koneksi terakhir Anda</string>
@@ -1357,8 +1470,13 @@
     <string name="home_favorites_full">Keempat favorit sudah terisi. Tekan lama salah satunya di layar beranda untuk menggantinya.</string>
     <string name="home_choose_favorite_app">Pilih aplikasi atau pintasan</string>
     <string name="home_shortcut_badge">Pintasan</string>
-    <string name="home_show_favorite_apps">Aplikasi dan widget di layar beranda</string>
-    <string name="home_show_favorite_apps_description">Aplikasi favorit dan widget Anda di bawah tombol utama, saat Open Headunit menjadi peluncur Anda</string>
+    <string name="app_drawer_tab_shortcuts">Pintasan</string>
+    <string name="home_show_favorite_apps">Aplikasi favorit di layar beranda</string>
+    <string name="home_show_favorite_apps_description">Aplikasi favorit Anda di bawah tombol utama, saat Open Headunit menjadi peluncur Anda</string>
+    <string name="home_show_widgets">Widget di layar beranda</string>
+    <string name="home_show_widgets_description">Widget Anda, halamannya, dan kartu Tambah widget, saat Open Headunit menjadi peluncur Anda</string>
+    <string name="home_surface_opacity">Opasitas panel</string>
+    <string name="home_surface_opacity_description">Turunkan agar gambar latar belakang Anda terlihat menembus panel dan tombol layar beranda.</string>
     <string name="home_show_clock">Tanggal dan waktu di layar utama</string>
     <string name="home_show_clock_description">Waktu dan tanggal hari ini di atas tombol utama</string>
     <string name="home_show_speed">Kecepatan GPS di layar utama</string>
@@ -1394,4 +1512,16 @@
     <string name="audio_settings_reconnect">Pengaturan audio disimpan. Hubungkan ulang Android Auto untuk menerapkannya.</string>
     <string name="native_aa_candidate_android_radio_description">Gunakan Bluetooth Android alih-alih memilih modul Bluetooth head unit secara otomatis. Biarkan nonaktif untuk pemilihan otomatis. Jika opsi koneksi melalui modul aktif, nonaktifkan terlebih dahulu.</string>
     <string name="external_bt_candidate_transport_description">Paksa koneksi melalui modul Bluetooth head unit alih-alih pemilihan otomatis. Memerlukan layanan modul yang kompatibel. Biarkan nonaktif agar Bluetooth Android dapat digunakan saat layanan tidak merespons; mengaktifkannya mencegah jalur cadangan ini.</string>
+    <string name="audio_matching_mode">Koreksi waktu musik</string>
+    <string name="audio_matching_ohu">OHU</string>
+    <string name="audio_matching_wsola">WSOLA</string>
+    <string name="audio_matching_phase_vocoder">Phase Vocoder</string>
+    <string name="audio_matching_phase_vocoder_short">Phase Vocoder Short</string>
+    <string name="audio_matching_phase_gradient">Phase Gradient</string>
+    <string name="audio_matching_ohu_hint">Bawaan</string>
+    <string name="audio_matching_wsola_hint">Ringan</string>
+    <string name="audio_matching_phase_vocoder_hint">Seimbang</string>
+    <string name="audio_matching_phase_vocoder_short_hint">Latensi rendah</string>
+    <string name="audio_matching_phase_gradient_hint">Pemutaran lambat</string>
+    <string name="audio_matching_description">OHU tetap menjadi bawaan. WSOLA menyelaraskan gelombang yang tumpang tindih; Phase Vocoder menyesuaikan fase spektral. Short memakai jendela analisis lebih pendek. Phase Gradient merekonstruksi fase dengan mengintegrasikan gradien fase. Implementasi independen ini menambah latensi pemrosesan; namanya bukan peringkat kualitas suara.\n\nMetode native: musik PCM. Navigasi, respons suara, suara sistem, dan AAC memakai OHU.\nHubungkan ulang untuk menerapkan. Pengaturan mesin yang dihapus kembali ke OHU.</string>
 </resources>
